@@ -1,0 +1,35 @@
+[project]
+name = "creatormilestone-backend"
+version = "0.1.0"
+description = "CreatorMilestone backend: FastAPI service, PayPal Invoicing v2 client, and AI agent."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.162.0",
+    "httpx>=0.28.1",
+    "pydantic-settings>=2.16.2",
+    "sqlalchemy>=2.1.6",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1",
+    "ruff>=0.17.3",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

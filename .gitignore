@@ -1,0 +1,24 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local data and smoke-test output
+*.db
+backend/smoke-results/
+
+# Frontend
+node_modules/
+frontend/dist/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
