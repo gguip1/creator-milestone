@@ -1,14 +1,28 @@
 # CreatorMilestone — Implementation PRD & Agent Handoff
 
-- Version: 1.2 — repositioned as a **seller-side AI back-office agent for cross-border freelancers**, with scope-creep defense and change orders as the core demo moment
-- As of: 2026-11-01 (KST)
+- Version: 1.3 — a **seller-side AI back-office agent for cross-border commission artists**, with scope-creep defense and change orders as the core demo moment; aligned with the Official Rules
+- As of: 2026-11-04 (KST)
 - Event: **PayPal AI Hackathon 2026** (Devpost: https://paypalaihackathon.devpost.com/)
 - Hard deadline: **2026-11-12 12:00 PM PT = 2026-11-13 05:00 KST**
 - Internal submission target: **2026-11-12 22:00 KST** (7h buffer)
 - Team: **one human owner + an AI coding agent (Claude Code) as the implementer.** The plan is scoped so one owner can finish it. Implementation may run ahead of §18; when it does, pull P1 forward. The human-only tasks in §18.1 are the real critical path.
 - Language policy: **everything judges see is English**: repo, README, code comments, UI, Devpost text, video narration and captions. Korean appears only as demo content and the creator-language translation of AI drafts.
-- Working name: CreatorMilestone (consider a freelancer-neutral name before Nov 10; the name is not blocking).
-- Status: Direction locked. Live PayPal API calls and account permissions **not yet validated** (Gate A).
+- Name: CreatorMilestone.
+- Repository: **private until submission**; it must be public, with the license visible, before submitting (§15.1).
+- Status: Direction locked. **Gate A passed on 2026-11-04**: draft, send, remind, cancel, and a real sandbox buyer payment read back as PAID (`docs/paypal-test-log.md`).
+
+### Changes from Gate A (2026-11-04)
+- Korean seller + Korean buyer is blocked by PayPal; demo uses a Korean seller and a US buyer (§11.4).
+- A repeated create returned `DUPLICATE_INVOICE_NUMBER` instead of replaying the invoice; recovery looks it up by invoice number (§11.2).
+- Drafts cannot be cancelled; only sent invoices can (§11.2).
+
+### Changes from v1.2
+- §1 now comes from the Official Rules and Overview page pasted by the owner on 2026-11-03, replacing secondary sources.
+- The pitch leads with one specific audience (commission artists) because Potential Impact asks for "a real problem for a real audience". Other freelancers are the expansion story.
+- Video and text are the top priority because judges may score on them alone.
+- Added a sponsor-prize target: AG Grid (P1). Render is the default host.
+- Added the required "Tools" disclosure, license visibility, and authorship notes.
+- Gate A slipped to Nov 3–4.
 
 ### Changes from v1.1
 - Product is now an **agent that works for the freelancer**: it watches the project and proposes the next business action; the human approves; PayPal executes.
@@ -32,31 +46,43 @@ Conflict priority: (1) real PayPal sandbox integration (2) full happy path, incl
 
 ## 1. Hackathon facts that constrain this project
 
-> Source caveat: the Devpost pages returned 403 to automated fetches during research. These facts come from secondary listings (§22). **A human must confirm each item on the official Devpost Overview and Rules pages by Nov 2**, including how the "Agentic Commerce" category is described. Where sources disagreed, this table uses the stricter value.
+Source: Official Rules and Overview page, pasted by the owner on 2026-11-03. The Official Rules prevail over any other hackathon material and can change, so re-check them before submitting.
 
 | Item | Fact | Implication |
 |---|---|---|
-| Theme | Open brief: **meaningfully use both PayPal and AI** | AI must make real decisions; PayPal must handle real money flow |
-| Allowed PayPal tech | Sandbox, REST APIs, JS SDK v6, Pay Later, Subscriptions, **Invoicing**, Payouts, **Webhooks**, **Agent Toolkit**, **MCP server** | Invoicing is the core; polling now, webhooks later; Agent Toolkit optional |
-| Judging (equal weight) | Technological implementation, Design, Potential impact, Innovation, Presentation | Each needs a visible proof point (§3) |
+| Deadline | Nov 12, 2026 12:00 PM PT (Nov 13 05:00 KST). No submission changes afterward | Internal target stays Nov 12 22:00 KST |
+| Judging | Dec 1, 2:00 PM PT – Dec 15, 8:00 AM PT; winners around Dec 21 | Project stays available until Dec 15 (§15.4) |
+| Theme | No tracks. The project must meaningfully use both PayPal and AI, and PayPal must be central | Fits an agent or business tool |
+| PayPal requirement | At least one PayPal technology, API, SDK, or product, using the free sandbox | Invoicing qualifies; depth affects the score |
+| Stage One | Pass/fail on theme fit and use of the required APIs | Make the PayPal use obvious in the text and video |
+| Stage Two (equal weight) | Technological Implementation, Design, Potential Impact, Innovation/Idea, Presentation | See §3. Ties go to the earlier-listed criterion |
+| Evaluation method | May use expert panels, peer review, or **automated AI-driven analysis** | Keep README and text explicit and well structured |
+| Testing | **Judges are not required to test** and may score only on text, images, and video | Video and text come first; the demo must still work |
+| Functional demo | Setup instructions in the repo **or** a hosted URL; mockups do not qualify | Hosted demo is optional but kept, with instructions too |
+| Access | Free and unrestricted until judging ends; include any test logins, keys, or sandbox details needed | Provide the sandbox buyer login; never real accounts |
+| Repository | Public on GitHub, GitLab, or Bitbucket; all source, assets, instructions; **OSS license detectable and visible in the About section** | Flip to public and verify before submitting |
+| Video | Under 3 min, public on YouTube, shows the project working on its intended device; no third-party trademarks or copyrighted material without permission | Real browser footage only; own or licensed assets |
+| Text | Features and functionality, plus **Tools: which models or AI services were used and how** | Disclose every AI tool (§15.5) |
+| Language | English, or English translations of all materials | Language policy above |
+| New work | New, or significantly updated during Oct 1 – Nov 12 | Project is new |
+| Authorship | Must be the entrant's original work, solely owned, resulting from the entrant's ideas and creativity. Technical assistance is allowed under those conditions. Winners' role in creating the work is verified | The rules do not mention AI coding tools. The owner keeps product decisions, can explain the system, and discloses the tools |
+| Eligibility | Age of majority; excluded: Brazil, Quebec, Russia, Crimea, Cuba, Iran, North Korea, and other prohibited places; conflicts of interest excluded | South Korea is not on the exclusion list |
 | Grand prizes | $12,000 / $8,000 / $5,000 | |
-| Category prizes ($5,000 each) | Most Creative, Most Impactful, Best Demo Delivery, Best Use of PayPal + AI, Best Use of Agentic Commerce | Primary: PayPal + AI, Demo Delivery. Secondary: Impactful, Agentic Commerce |
-| Sponsor prizes | AG Grid, APIMatic, Bryntum, Channel3, Render (credits) | Optional; check each sponsor's rules |
-| Required submission | Text description, working demo judges can run or a hosted version, public GitHub repo with OSS license, public YouTube video < 3 min | Mockups and slide decks do not count |
-| Availability | Free and accessible to judges **until 2026-12-15** | Hosting, DB, sandbox app, and LLM key must survive (§15.4) |
-| Eligibility | Excluded: Brazil, Quebec, Russia, Crimea, Cuba, Iran, North Korea, US-sanctioned regions | South Korea is eligible |
-| Prior work | Allowed if meaningful progress was made during the hackathon | Commit history must show the work |
+| Honorable Mention ($5,000 each) | Most Creative, Most Impactful, Best Demo Delivery, Best Use of PayPal + AI, Best Use of Agentic Commerce | **Agentic Commerce has no definition in the pasted pages** |
+| Sponsor prizes | AG Grid $5,000 / $2,000 / $1,000 ×3; APIMatic $1,000 ×3 + subscription; Bryntum $1,000 ×3; Channel3 $1,500; Render credits $1,000 / $750 / $500 | Must actually use that sponsor's tools |
+| Prize stacking | At most one Grand **or** one Honorable Mention, plus one Sponsor Prize | A sponsor prize is an additional, separate chance |
+| Taxes and forms | Winner affidavit and tax forms (e.g., W-8BEN) due within 10 business days; winner pays fees and taxes | Owner's responsibility if a prize is won |
 
 ---
 
 ## 2. Product definition
 
-**Tagline:** Your AI back office for cross-border freelance work: it turns messy client chats into agreed scope, guards that scope, and bills every stage through PayPal.
+**Tagline:** Your AI back office for cross-border commission work: it turns messy client chats into agreed scope, guards that scope, and bills every stage through PayPal.
 
 **One-liner:** An AI agent that works for the freelancer. It reads foreign-language client requests, drafts the scope and the questions that still need answers, plans milestone payments, notices when the client asks for more than was agreed, and proposes the right PayPal invoice at each step. Every financial action waits for the freelancer's one-tap approval.
 
 **Who:**
-- **Seller:** independent freelancers selling across borders: illustrators, VTuber asset makers, video editors, translators, music producers. Demo persona: Jiwoo, a Korean illustrator.
+- **Seller:** independent digital artists taking commissions from clients abroad: illustrators, character designers, VTuber asset makers. Demo persona: Jiwoo, a Korean illustrator. Expansion story only: other cross-border freelancers.
 - **Client:** international customers. Demo persona: an English-speaking VTuber preparing a debut.
 
 **Pain:**
@@ -84,15 +110,16 @@ Conflict priority: (1) real PayPal sandbox integration (2) full happy path, incl
 |---|---|
 | Technological implementation | Real sandbox invoices (IDs, deep links), status read from PayPal, idempotent proposal executor, state machines, test suite in CI, `paypal-test-log.md` |
 | Design | One timeline per project with proposal cards (Approve / Edit / Dismiss); evidence highlighting; a mobile client view |
-| Potential impact | Cross-border freelancers broadly; scope creep and payment chasing are universal pains; PayPal invoices are already the natural channel |
+| Potential impact | A specific audience (commission artists with clients abroad) and specific losses (unpaid extras, unclear terms, awkward payment chasing), each resolved on screen |
 | Innovation | Agreement-aware Scope Guard with clause citations; rate-card pricing so AI never invents prices; agreed terms travel inside the PayPal invoice; human-gated agent pattern |
 | Presentation | Under 3 min video with a clear arc: chaos → agreement → paid → scope creep caught → paid again |
 
 **Prize angles:**
 - *Best Use of PayPal + AI*: AI decides what to bill, when, and why; PayPal carries the money and the terms.
 - *Best Demo Delivery*: Judge Mode with reseed, a sandbox buyer, and a skip-ahead shortcut.
-- *Most Impactful*: protects freelancer income across borders.
-- *Best Use of Agentic Commerce*: a seller-side commerce agent with a safety model. It runs the billing lifecycle on its own initiative, but money actions need approval. Confirm the category description first; do not bend the product to fit it.
+- *Most Impactful*: protects commission artists' income across borders.
+- *Best Use of Agentic Commerce*: a seller-side commerce agent with a safety model. It runs the billing lifecycle on its own initiative, but money actions need approval. The category is undefined in the pages reviewed, so do not bend the product to fit it.
+- *Sponsor prize (stackable)*: Best Use of AG Grid via the receivables ledger (§4 P1). Host on Render, which also makes the Render prize possible.
 
 ---
 
@@ -114,7 +141,8 @@ Conflict priority: (1) real PayPal sandbox integration (2) full happy path, incl
 13. **Hosted demo with Judge Mode**, public repo, LICENSE, README, Devpost text, video (§15).
 
 ### P1 — only after the full P0 path works on the hosted URL
-- Verified webhooks with event-ID dedupe (replaces the fast polling).
+- Verified webhooks with event-ID dedupe (replaces the fast polling). First P1: strongest Technological Implementation signal.
+- Receivables ledger built with AG Grid: every invoice and change order with amount, PayPal status, scope version, age, and a next-action filter. Must be useful on its own and appear in the video. Check the AG Grid license at install. Second P1.
 - Deliverable evidence upload (thumbnail/link) on the client page.
 - Agent chat panel using PayPal Agent Toolkit invoice tools. Read tools run directly; write tools become proposal cards.
 - Overdue-deadline nudges and weekly "money owed" digest.
@@ -182,7 +210,8 @@ Change order #1 proposal: $100.00. The reply draft thanks the client, explains w
 - Request with no rate-card match → "needs a price" line; seller must enter a price.
 - Stale proposal (scope changed or invoice already sent) → card shows "outdated", cannot be approved.
 - PayPal 401 → new client-credentials token, retry once. 403 → disable billing and show the permission problem. 422 → sanitized details; proposal marked FAILED with retry.
-- Timeout after POST → look up by stored request ID / invoice number before retrying; reuse `PayPal-Request-Id`.
+- Timeout after POST → search by stored invoice number before retrying; on `DUPLICATE_INVOICE_NUMBER`, adopt the invoice found by that search.
+- Korean seller billing a Korean PayPal account → `KOREAN_MERCHANT_KOREAN_PAYER_RESTRICTED` on send → plain-language error; draft retained.
 - Double approve → one execution.
 - `MARKED_AS_PAID` → labeled "Marked paid (outside PayPal)", distinct from PAID.
 - Buyer never pays → SENT/UNPAID shown honestly; reminder proposal appears.
@@ -241,7 +270,7 @@ Visual direction: calm studio look, warm paper background, one blue accent, stat
 - DB: SQLite locally; persistent disk or managed Postgres in hosting, surviving until Dec 15.
 - LLM: any provider with strict JSON-schema output. Server-only key, input length cap, per-IP rate limit, provider spend cap. Cached analysis fallback for the two demo messages if the LLM call fails (labeled "cached").
 - PayPal: REST Invoicing v2, OAuth2 client credentials, sandbox. P1: webhooks, Agent Toolkit schemas.
-- Deployment: **one service**. FastAPI serves the SPA and the API on one HTTPS origin. Fallback: `docker compose up`.
+- Deployment: **one service on Render** (default). FastAPI serves the SPA and the API on one HTTPS origin. Fallback: `docker compose up`.
 - CI: GitHub Actions for backend tests and frontend type-check.
 - Background work: one in-process scheduler (APScheduler or an asyncio task) for status polling and reminder checks; no queue infrastructure.
 
@@ -321,10 +350,10 @@ Sandbox base `https://api-m.sandbox.paypal.com`. Never call live.
 
 ### 11.2 Operations
 - **Token:** `POST /v1/oauth2/token`; cache until `expires_in` minus a margin; on 401 request a new token once.
-- **Create draft:** `POST /v2/invoicing/invoices`. Include `detail.currency_code`, a unique `detail.invoice_number` (`CM-<project>-<milestone>-<attempt>`), invoicer, `primary_recipients`, and items. Plan milestones get one item; change orders get one item per line, so the buyer sees "Extra outfit × 1, Extra revision × 1". Also set `detail.note` (what this payment covers + scope version), `detail.terms_and_conditions` (revisions, usage, delivery terms of that version), and `configuration.allow_partial_payment = false`. Send a stable `PayPal-Request-Id`.
+- **Create draft:** `POST /v2/invoicing/invoices`. Include `detail.currency_code`, a unique `detail.invoice_number` (`CM-<project>-<milestone>-<attempt>`), invoicer, `primary_recipients`, and items. Plan milestones get one item; change orders get one item per line, so the buyer sees "Extra outfit × 1, Extra revision × 1". Also set `detail.note` (what this payment covers + scope version), `detail.terms_and_conditions` (revisions, usage, delivery terms of that version), and `configuration.allow_partial_payment = false`. Send a stable `PayPal-Request-Id`, but do not rely on it to replay a create: a repeat with the same ID and number returned `422 DUPLICATE_INVOICE_NUMBER`. The stable invoice number is the duplicate guard; recover with `POST /v2/invoicing/search-invoices`.
 - **Send:** `POST /v2/invoicing/invoices/{id}/send`, then GET to verify; store the payer link if returned.
 - **Remind:** `POST /v2/invoicing/invoices/{id}/remind` (verify body fields).
-- **Cancel:** `POST /v2/invoicing/invoices/{id}/cancel`.
+- **Cancel:** `POST /v2/invoicing/invoices/{id}/cancel`, sent invoices only (a draft returns `CANNOT_CANCEL_DRAFT_INVOICE`).
 - **Read:** `GET /v2/invoicing/invoices/{id}`; polled every 15–30 s while any invoice is SENT/UNPAID/PAYMENT_PENDING and the project page is open, and on demand.
 - **Webhooks (P1):** `INVOICING.INVOICE.PAID`, `.CANCELLED`, `.REFUNDED`; verify signature, dedupe by event ID, reconcile by GET.
 
@@ -343,10 +372,13 @@ Sandbox base `https://api-m.sandbox.paypal.com`. Never call live.
 | other | Unknown (raw value shown) | No |
 
 ### 11.4 Gate A capability checks
-- Business sandbox account with invoicing enabled. If a KR-country account cannot invoice, create a **US-country sandbox business account** and document it.
-- The buyer sandbox account can open the payer link and pay.
-- Multi-item invoices show `note` and `terms_and_conditions` on the buyer-facing page (take a screenshot; this is a hero visual).
-- Remind works on a SENT invoice.
+Results from 2026-11-03 and 2026-11-04:
+- **Invoicing must be enabled on the sandbox app.** Without it, the token has no invoicing scope and calls return 403. After enabling it, PayPal kept returning the cached token; `POST /v1/oauth2/token/terminate` forced a new one with the scope.
+- **Korean seller + Korean buyer is blocked** (`KOREAN_MERCHANT_KOREAN_PAYER_RESTRICTED`). PayPal documents that Korean accounts cannot transact with each other. Korean seller + US buyer works, which matches the product's cross-border scope. State this limit in the README.
+- The US sandbox buyer opened the payer link and paid; status read back as PAID.
+- `note` and `terms_and_conditions` appeared on the buyer-facing page for the one-line invoice (owner confirmed). The two-line invoice's buyer page is not yet checked; capture screenshots for the gallery.
+- Remind was accepted on a SENT invoice. Whether a reminder reaches the buyer's sandbox notifications was not checked.
+- `payments.transactions[].payment_date_time` looked about 8 hours off; do not treat it as reliable UTC.
 
 ### 11.5 Do not
 - Do not use `POST /v2/invoicing/invoices/{id}/payments` to simulate payment (it creates MARKED_AS_PAID).
@@ -420,17 +452,19 @@ Errors: `{code, message, request_id, details?}`. Never log tokens, secrets, or r
 
 ## 15. Deliverables and how we show them
 
+Priority: judges may score on the text, images, and video alone, so those must stand on their own. The hosted demo is still kept because it strengthens every criterion for judges who try it.
+
 ### 15.1 Deliverables (all English)
 | # | Deliverable | Done when |
 |---|---|---|
-| D1 | Public GitHub repo | History from the hackathon period, secret scan clean, CI green |
-| D2 | `LICENSE` | MIT at root |
+| D1 | GitHub repo | Private until submission. Before submitting: full-history secret scan, CI green, flipped to public, opened logged out |
+| D2 | `LICENSE` | MIT at root; **detected and shown in the repo's About section** after going public |
 | D3 | `README.md` | A judge reaches "change order paid" in under 4 minutes using it |
 | D4 | Hosted demo | One HTTPS URL with Judge Mode, available until 2026-12-15 |
 | D5 | Local run | `docker compose up` works on a clean machine |
 | D6 | Demo video | Public YouTube, **≤ 2:50**, English narration + captions |
 | D7 | Devpost text | §15.5 |
-| D8 | Judge testing instructions | Demo URL, sandbox buyer login (sandbox only), expected outcomes |
+| D8 | Judge testing instructions | Demo URL, setup instructions, sandbox buyer login (sandbox only), expected outcomes |
 | D9 | `docs/paypal-test-log.md` | Dated, sanitized evidence of real sandbox calls |
 | D10 | `docs/architecture.md` | Agent loop diagram (§7) + trust boundaries |
 | D11 | Gallery images | Intake evidence view, proposal card, PayPal invoice showing terms, Scope Guard table, client approval on mobile, timeline with PAID |
@@ -454,7 +488,8 @@ Errors: `{code, message, request_id, details?}`. Never log tokens, secrets, or r
 - **Skip ahead** buttons: "Jump to: deposit paid" and "Jump to: sketch shared". These replay real API steps quickly; they do not fake PayPal state. Paid status must come from a real sandbox payment. If a prepaid seed is used, show its real invoice ID from earlier sandbox runs.
 - Rate limits on analyze, messages, and approvals; cap invoices per visitor per hour.
 
-### 15.4 Keep-alive until Dec 15
+### 15.4 Keep-alive until Dec 15, 8:00 AM PT
+- After submission, only fix bugs; do not change behavior shown in the video.
 - Host without idle sleep (or with a documented cold start and a warm-up), with persistent storage.
 - LLM spend cap, key valid through Dec 15, cached analysis fallback for the demo messages.
 - Sandbox app and webhook registered; sandbox buyer funded.
@@ -468,6 +503,7 @@ Errors: `{code, message, request_id, details?}`. Never log tokens, secrets, or r
 - **Accomplishments**: real sandbox invoices carrying agreed terms; scope creep caught with clause citations and billed as an additional invoice.
 - **What we learned**
 - **What's next**: chat-platform intake, multi-seller onboarding via PayPal partner flows, agent-to-agent negotiation, more verticals.
+- **Tools**: each model or AI service and how it is used: the runtime LLM (extraction, reply drafting, Scope Guard) and Claude Code (development assistance).
 - **Built with**: paypal-invoicing, paypal-rest-api, fastapi, python, react, typescript, <llm>, <db>, <host>.
 
 ### 15.6 Video script (target 2:40, hard max 2:50)
@@ -481,7 +517,7 @@ Errors: `{code, message, request_id, details?}`. Never log tokens, secrets, or r
 | 2:10–2:30 | Timeline/activity log: agent, seller, client, PayPal actors; architecture slide | Language and judgment by AI, money by rules and PayPal |
 | 2:30–2:40 | Close | Who this helps and what's next |
 
-Rules: continuous take or clearly marked cuts; sandbox banner visible; no real personal data; no copyrighted music; 1080p; captions on. Show PAID only if it happened in that session.
+Rules: real browser footage only, including the client page at a mobile viewport; no third-party trademarks or assets without permission, and do not use PayPal's logo as our branding; continuous take or clearly marked cuts; sandbox banner visible; no real personal data; no copyrighted music; 1080p; captions on. Show PAID only if it happened in that session.
 
 ---
 
@@ -514,7 +550,7 @@ Rules: continuous take or clearly marked cuts; sandbox banner visible; no real p
 ---
 
 ## 17. Impact framing
-1. **Who:** freelancers who sell digital work across borders, where language and distance make terms fuzzy and enforcement awkward.
+1. **Who:** independent digital artists taking commissions from clients abroad, where language and distance make terms fuzzy and enforcement awkward. Other cross-border freelancers are the expansion story.
 2. **Pain in money terms:** unpaid extra work from scope creep, delayed stage payments, lost clients after awkward money conversations.
 3. **Why PayPal:** clients already trust it, and invoices are the natural channel for this work. The agent makes each invoice carry the agreed terms and turns scope changes into billable, approved line items.
 4. **Business angle (future):** freemium seller tool; rate-card templates per vertical; chat-platform intake; partner onboarding for many sellers.
@@ -522,35 +558,30 @@ Rules: continuous take or clearly marked cuts; sandbox banner visible; no real p
 
 ---
 
-## 18. Delivery plan (solo, today = Nov 1 KST)
+## 18. Delivery plan (solo, updated Nov 3 KST)
 
 | Date (KST) | Work | Exit gate |
 |---|---|---|
-| Nov 1–2 | **Gate A** smoke test: token, multi-item draft with note/terms, send, GET, buyer pays, remind, cancel. Confirm Devpost rules (incl. Agentic Commerce description). | `paypal-test-log.md` written; fallback chosen if blocked |
-| Nov 3 | Repo, LICENSE, CI, single-service skeleton deployed to the final host | Hosted `/api/health` green |
+| Nov 3–4 | **Gate A: passed Nov 4.** Token, multi-item draft with note/terms, send, GET, buyer pays, remind, cancel. | `paypal-test-log.md` written; fallback chosen if blocked |
+| Nov 4 | Single-service skeleton deployed to Render (repo, LICENSE, CI done Nov 1) | Hosted `/api/health` green |
 | Nov 4 | Money, state machines, invoice service, proposal executor, tests | Tests green |
 | Nov 5 | Intake AI: extraction, quote verification, reply draft, fixtures | Message 1 yields the §5 result |
 | Nov 6 | Scope form, planner, acceptance, client page | AGREED via both parties |
 | Nov 7 | Project screen, proposal cards, billing rules, polling, reminders | Deposit paid on hosted URL |
 | Nov 8 | **Scope Guard + change orders** end to end | Change-order invoice sent on hosted URL |
-| Nov 9 | P1 timebox (webhooks → Agent Toolkit chat); polish; P2 only if all done by noon | No regressions |
+| Nov 9 | P1 timebox (webhooks → AG Grid ledger → Agent Toolkit chat); polish; P2 only if all done by noon | No regressions |
 | Nov 10 | Judge Mode, skip-ahead, rate limits, secret scan, keep-alive, screenshots | Clean-machine dry run passes |
 | Nov 11 | README, architecture doc, Devpost text, record and edit video | Video ≤ 2:50 uploaded |
-| Nov 12 | Final dry run; submit by **22:00 KST** | Submitted (hard deadline Nov 13 05:00 KST) |
+| Nov 12 | Secret scan, flip repo public, check license in About, final dry run; submit by **22:00 KST** | Submitted (hard deadline Nov 13 05:00 KST) |
 
 ### 18.1 Human-only tasks (the agent cannot do these)
 | When | Task | Notes |
 |---|---|---|
-| Nov 1–2 | Read the Devpost Overview, Rules, and the Agentic Commerce category text; report differences from §1 | Automated fetch is blocked |
-| Nov 1–2 | Register for the hackathon on Devpost | |
-| Nov 1–2 | PayPal Developer account → sandbox REST app → put client ID/secret in `backend/.env` | Never paste secrets in chat or commit them |
-| Nov 1–2 | Create sandbox accounts: Business (seller; US country if KR cannot invoice) + Personal (buyer) | Share only the sandbox buyer email in `.env` |
-| Nov 1–2 | Pay the first test invoice as the sandbox buyer in a browser | Needed for Gate A |
-| Nov 3 | Create the LLM API key (with a spend cap) and the hosting account; connect the GitHub repo | |
-| Nov 3 | Create the public GitHub repo | Agent can push once access is set up |
+| Nov 3 | Check the Devpost Resources and FAQs pages for an Agentic Commerce definition; confirm registration | Rules and Overview were reviewed Nov 3 |
+| Nov 4 | Create the LLM API key (with a spend cap) and the Render account; connect the GitHub repo | |
 | Nov 10 | Clean-machine dry run as a "judge" | |
 | Nov 11 | Record narration and screen capture; upload to YouTube | Agent writes the script, captions, and shot list |
-| Nov 12 | Submit on Devpost | Agent drafts all text in `docs/devpost.md` |
+| Nov 12 | Approve flipping the repo to public; agree to the rules and submit on Devpost | Agent drafts all text in `docs/devpost.md` |
 | Dec 1, Dec 8 | Open the hosted demo and run the flow | |
 
 **If behind schedule, cut in this order:** (1) reminders (2) client page → in-app "act as client" switch (3) seller-language translation of drafts (4) sketch/final delivery flow (demo jumps from deposit to change order). **Never cut:** real PayPal invoices, buyer payment, Scope Guard + change-order invoice.
@@ -572,7 +603,8 @@ Timebox: any P1 not working in 4 hours is deferred. No architecture rewrites aft
 | "Agentic" framing seen as weak because of human approval | Medium | Present approval as the safety model; show the agent initiating every step |
 | Secrets exposed in public demo | Critical | Server-only secrets, scan, allowlist, rate limits |
 | Demo broken during judging | High | §15.4 |
-| Rules misread (secondary sources) | Medium | Human check by Nov 2 |
+| Agentic Commerce undefined in reviewed pages | Low | Check Resources and FAQs; ask the hackathon manager if needed; not a primary target |
+| Authorship questioned during prize verification | Medium | Disclose tools; owner keeps product decisions and can explain the system; ask the hackathon manager if unsure |
 | Solo schedule slip | High | Cut order in §18 |
 
 ---
@@ -640,9 +672,7 @@ Do not spend meaningful time on UI before step 3 is reported.
 
 ---
 
-## 22. Sources for §1 (secondary; verify on Devpost)
-- Devpost: https://paypalaihackathon.devpost.com/ (403 to automated fetch on 2026-11-01)
-- https://thegenaimagazine.com/paypal-ai-hackathon-2026-ideas-deadline-prizes
-- https://devgrantsdaily.com/items/2026-10-02-paypal-ai-hackathon-2026/
-- https://parsecailabs.com/en/blog/paypal-ai-hackathon/ (conflicts with other sources; low confidence)
+## 22. Sources for §1
+- Official Rules: https://paypalaihackathon.devpost.com/rules (pasted by the owner on 2026-11-03)
+- Overview: https://paypalaihackathon.devpost.com/ (pasted by the owner on 2026-11-03)
 - PayPal Agent Toolkit: https://developer.paypal.com/tools/agent-toolkit

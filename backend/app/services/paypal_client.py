@@ -200,6 +200,15 @@ class PayPalClient:
             )
         return await self.get_invoice(href.rstrip("/").rsplit("/", 1)[-1])
 
+    async def find_invoices_by_number(self, invoice_number: str) -> list[dict]:
+        """Recovery lookup: a retried create can fail with DUPLICATE_INVOICE_NUMBER."""
+        response = await self._request(
+            "POST",
+            "/v2/invoicing/search-invoices",
+            json={"invoice_number": invoice_number},
+        )
+        return response.json().get("items", [])
+
     async def get_invoice(self, invoice_id: str) -> dict:
         response = await self._request("GET", f"{INVOICES_PATH}/{invoice_id}")
         return response.json()

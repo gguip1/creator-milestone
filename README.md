@@ -1,11 +1,13 @@
 # CreatorMilestone
 
-Your AI back office for cross-border freelance work. It turns messy client chats into agreed scope, guards that scope, and bills every stage through PayPal.
+Your AI back office for cross-border commission work. It turns messy client chats into agreed scope, guards that scope, and bills every stage through PayPal.
 **The agent proposes, you approve, PayPal executes.**
 
 Built for the PayPal AI Hackathon 2026. Sandbox only. No real money moves.
 
-> Status: early skeleton. The PayPal sandbox smoke test (Gate A) runs first, and the product UI comes after it. See [`docs/PRD.md`](docs/PRD.md).
+> Status: early skeleton. The PayPal sandbox flow is verified end to end ([test log](docs/paypal-test-log.md)); the product UI is next. See [`docs/PRD.md`](docs/PRD.md).
+>
+> PayPal does not allow transactions between two Korean accounts, so use a sandbox buyer from another country if your seller account is Korean.
 
 ## Repository layout
 

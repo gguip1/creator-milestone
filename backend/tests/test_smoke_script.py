@@ -4,6 +4,7 @@ import argparse
 import json
 
 import httpx
+import pytest
 
 from app.config import Settings
 from app.services import paypal_client as paypal_module
@@ -11,7 +12,8 @@ from scripts import paypal_smoke_test as smoke
 
 
 class FakeSandbox:
-    def __init__(self) -> None:
+    def __init__(self, reject_duplicates: bool = False) -> None:
+        self.reject_duplicates = reject_duplicates
         self.invoices: dict[str, dict] = {}
         self.by_request_id: dict[str, str] = {}
 
@@ -19,8 +21,19 @@ class FakeSandbox:
         path = request.url.path
         if path == "/v1/oauth2/token":
             return httpx.Response(200, json={"access_token": "t", "expires_in": 32400})
+        if path == "/v2/invoicing/search-invoices":
+            number = json.loads(request.content)["invoice_number"]
+            items = [
+                inv for inv in self.invoices.values() if inv["detail"]["invoice_number"] == number
+            ]
+            return httpx.Response(200, json={"items": items})
         if request.method == "POST" and path == "/v2/invoicing/invoices":
             request_id = request.headers["PayPal-Request-Id"]
+            if self.reject_duplicates and request_id in self.by_request_id:
+                issue = {"field": "/detail/invoice_number", "issue": "DUPLICATE_INVOICE_NUMBER"}
+                return httpx.Response(
+                    422, json={"name": "UNPROCESSABLE_ENTITY", "details": [issue]}
+                )
             if request_id not in self.by_request_id:
                 invoice_id = f"INV2-{len(self.invoices) + 1:04d}"
                 body = json.loads(request.content)
@@ -41,8 +54,9 @@ class FakeSandbox:
         return httpx.Response(204)
 
 
-async def test_smoke_script_passes_against_fake_sandbox(monkeypatch, tmp_path):
-    sandbox = FakeSandbox()
+@pytest.mark.parametrize("reject_duplicates", [False, True])
+async def test_smoke_script_passes_against_fake_sandbox(monkeypatch, tmp_path, reject_duplicates):
+    sandbox = FakeSandbox(reject_duplicates=reject_duplicates)
     real_init = paypal_module.PayPalClient.__init__
 
     def init_with_fake(self, *args, **kwargs):

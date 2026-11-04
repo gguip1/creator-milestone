@@ -190,6 +190,7 @@ async def main(args: argparse.Namespace) -> int:
         settings.paypal_client_secret.get_secret_value(),
     )
     payer_link_a = None
+    sent_a = False
     try:
         try:
             await client.get_access_token()
@@ -212,17 +213,9 @@ async def main(args: argparse.Namespace) -> int:
         invoice_a = await create(client, run, "A (deposit)", payload_a, request_id_a)
 
         if invoice_a:
-            # Same PayPal-Request-Id must not create a second invoice.
-            again = await create(client, run, "A again (same request id)", payload_a, request_id_a)
-            if again:
-                same = again.get("id") == invoice_a.get("id")
-                run.record(
-                    "idempotent create",
-                    same,
-                    "same invoice id returned" if same else "DIFFERENT invoice id returned",
-                )
+            await check_duplicate_create(client, run, payload_a, request_id_a, invoice_a["id"])
             await fetch(client, run, "A after create", invoice_a["id"])
-            _, payer_link_a = await send(client, run, "A", invoice_a["id"])
+            sent_a, payer_link_a = await send(client, run, "A", invoice_a["id"])
             await fetch(client, run, "A after send", invoice_a["id"])
 
         # B: change-order invoice with two lines, then a reminder.
@@ -260,8 +253,8 @@ async def main(args: argparse.Namespace) -> int:
             lines=[InvoiceLine("Cancellation test", 100)],
         )
         invoice_c = await create(client, run, "C (cancel test)", payload_c, str(uuid.uuid4()))
-        if invoice_c:
-            await send(client, run, "C", invoice_c["id"])
+        sent_c, _ = await send(client, run, "C", invoice_c["id"]) if invoice_c else (False, None)
+        if sent_c:
             try:
                 await client.cancel_invoice(invoice_c["id"], note="Sandbox cancellation test.")
                 run.record("cancel C", True, "cancel accepted")
@@ -269,7 +262,7 @@ async def main(args: argparse.Namespace) -> int:
                 run.record_error("cancel C", exc)
             await fetch(client, run, "C after cancel", invoice_c["id"])
 
-        if invoice_a and args.wait_for_payment > 0:
+        if sent_a and args.wait_for_payment > 0:
             await wait_for_payment(
                 client, run, invoice_a["id"], payer_link_a, args.wait_for_payment
             )
@@ -277,6 +270,33 @@ async def main(args: argparse.Namespace) -> int:
         await client.aclose()
 
     return finish(run, args, stamp)
+
+
+async def check_duplicate_create(
+    client: PayPalClient,
+    run: SmokeRun,
+    payload: dict[str, Any],
+    request_id: str,
+    invoice_id: str,
+) -> None:
+    """A retried create must not produce a second invoice, however PayPal signals it."""
+    try:
+        again = await client.create_draft_invoice(payload, request_id=request_id)
+        same = again.get("id") == invoice_id
+        detail = "request id replayed the same invoice" if same else "SECOND invoice created"
+        run.record("duplicate create", same, detail)
+    except PayPalError as exc:
+        if not any(d.get("issue") == "DUPLICATE_INVOICE_NUMBER" for d in exc.details):
+            run.record_error("duplicate create", exc)
+            return
+        run.record("duplicate create", True, "rejected with DUPLICATE_INVOICE_NUMBER")
+    try:
+        matches = await client.find_invoices_by_number(payload["detail"]["invoice_number"])
+    except Exception as exc:  # noqa: BLE001
+        run.record_error("search by invoice number", exc)
+        return
+    found = [m.get("id") for m in matches]
+    run.record("search by invoice number", found == [invoice_id], f"{len(found)} match(es)")
 
 
 async def wait_for_payment(

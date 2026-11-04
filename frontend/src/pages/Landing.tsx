@@ -8,7 +8,7 @@ export function Landing() {
     <main className="mx-auto max-w-3xl px-4 py-16">
       <p className="text-sm font-medium text-accent">CreatorMilestone</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-        Your AI back office for cross-border freelance work.
+        Your AI back office for cross-border commission work.
       </h1>
       <p className="mt-4 text-lg text-muted">
         Turn messy client chats into agreed scope, guard that scope, and bill every stage through
