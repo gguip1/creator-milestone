@@ -126,7 +126,7 @@ Source: Official Rules and Overview page, pasted by the owner on 2026-11-03. The
 ## 4. Scope and priorities
 
 ### P0 — must ship (solo scope)
-1. **Intake**: paste a client message → typed extraction with explicit / inferred / unknown provenance and a source quote per field. The server checks that each quote is a substring of the source; otherwise it drops the quote and downgrades the field to unknown.
+1. **Intake**: paste a client message → typed extraction with explicit / inferred / unknown provenance and a source quote per field. The server checks that each quote is a substring of the source; otherwise it drops the quote and downgrades the field to unknown. **A deterministic server rule also marks a term unconfirmed when its quote is hedged ("maybe", "might", "around", a question), whatever the model returned.** Provider test on 2026-11-04: the model returned a value of 2 for "Maybe two rounds of revisions?" on every successful call, sometimes labeled explicit.
 2. **Clarifying reply draft**: in the client's language, with a seller-language translation. Copy-to-clipboard only.
 3. **Scope review**: editable title, deliverables, file formats, deadline, included revisions, usage rights, price, currency, client email, notes. Missing mandatory fields block agreement.
 4. **Milestone planner**: deposit / sketch approval / final delivery, default 30/30/40, exact integer split, billing triggers (§13).
@@ -268,7 +268,7 @@ Visual direction: calm studio look, warm paper background, one blue accent, stat
 - Frontend: React + TypeScript + Vite, React Router, TanStack Query, Tailwind.
 - Backend: Python 3.12+, FastAPI, Pydantic v2, SQLAlchemy 2, httpx, Alembic.
 - DB: SQLite locally; persistent disk or managed Postgres in hosting, surviving until Dec 15.
-- LLM: any provider with strict JSON-schema output. Server-only key, input length cap, per-IP rate limit, provider spend cap. Cached analysis fallback for the two demo messages if the LLM call fails (labeled "cached").
+- LLM: Gemini API free tier (no billing attached), `gemini-3.5-flash-lite` first, then `gemini-3.1-flash-lite`, behind a provider interface. Do not use `gemini-2.5-*`: requests reroute on Dec 1, during judging. Server-only key, input length cap, per-IP rate limit. Retry 503s with backoff. Cached analysis fallback for the two demo messages if every call fails (labeled "cached"). Free-tier input may be used by Google and read by human reviewers, so use synthetic data and warn users not to enter personal data.
 - PayPal: REST Invoicing v2, OAuth2 client credentials, sandbox. P1: webhooks, Agent Toolkit schemas.
 - Deployment: **one service on Render** (default). FastAPI serves the SPA and the API on one HTTPS origin. Fallback: `docker compose up`.
 - CI: GitHub Actions for backend tests and frontend type-check.
@@ -597,6 +597,7 @@ Timebox: any P1 not working in 4 hours is deferred. No architecture rewrites aft
 | Invoicing restricted for the account's country | Critical | Gate A first; US-country sandbox business account; developer community; never fake |
 | Buyer can't pay in sandbox | Medium | Show SENT/UNPAID honestly; PAID only with a real payment |
 | Scope Guard misclassifies on camera | High | Fixtures for both demo messages; temperature 0; cached-analysis fallback; seller can edit every line |
+| LLM unavailable (free tier returned 503s on 2026-11-04) | High | Model fallback, retries, cached demo analysis; record the video when calls are healthy |
 | AI-invented prices | High | Rate card + backend math only; unmatched → manual price |
 | Workflow vs payment drift | High | Separate state fields; GET reconciliation |
 | Duplicate invoices | High | Proposal idempotency keys, active-invoice uniqueness, PayPal-Request-Id |
