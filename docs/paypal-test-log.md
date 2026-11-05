@@ -22,6 +22,7 @@ Tokens are never logged; emails are masked.
 - 2026-11-03: Repeating a create with the same `PayPal-Request-Id` and invoice number returned `422 DUPLICATE_INVOICE_NUMBER` instead of replaying the invoice. Retry recovery must handle this error and look the invoice up by number.
 - 2026-11-03: `POST /v2/invoicing/invoices/{id}/cancel` on a draft returns `422 CANNOT_CANCEL_DRAFT_INVOICE`.
 - 2026-11-05: **Full product flow verified live** through the app's HTTP API with real Gemini and the real sandbox: analyze, scope, both acceptances, deposit draft and send (`INV2-7QWT-H5G2-TH3P-U3U7`), Scope Guard ($100.00 total), both change-order approvals, scope v2, change-order draft and send with two lines (`INV2-PGQS-4XMX-4SPB-YKMV`). Both read back as SENT. Driven by script, not through the browser UI.
+- 2026-11-05: Both invoices paid by the sandbox buyer through the real checkout. The app's refresh read PAID for both ($90.00, $100.00), settled the deposit and the change order, and unlocked the sketch milestone. The deposit was paid by browser automation with the sandbox buyer login. The note and terms were read from the buyer-facing page.
 
 ## Smoke run 20261103140847 (UTC)
 
