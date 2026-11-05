@@ -54,9 +54,9 @@ function ProjectView({ project }: { project: Project }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-line pb-5">
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-2 border-b border-line pb-4">
         <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2">
-          <h1 className="font-display text-[32px] leading-tight sm:text-[44px]">
+          <h1 className="font-display text-[32px] leading-tight sm:text-[40px]">
             {project.title || "Untitled commission"}
           </h1>
           <Chip
@@ -69,15 +69,15 @@ function ProjectView({ project }: { project: Project }) {
             </span>
           </Chip>
         </div>
-        <p className="flex items-baseline gap-3">
+        <p className="ml-auto flex items-baseline gap-3">
           <span className="text-muted">Total</span>
-          <Mono className="text-[30px] leading-none sm:text-[40px]">
+          <Mono className="text-[28px] leading-none sm:text-[36px]">
             {formatMoney(total, project.currency_code)} {project.currency_code}
           </Mono>
         </p>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-b border-line py-5 md:grid-cols-3 xl:grid-cols-6">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-b border-line py-3 md:grid-cols-3 xl:grid-cols-6">
         <Summary label="Deliverable">{project.deliverables.join("; ") || "—"}</Summary>
         <Summary label="Files">{project.file_formats.join(", ") || "—"}</Summary>
         <Summary label="Revisions">
@@ -87,7 +87,7 @@ function ProjectView({ project }: { project: Project }) {
               type="button"
               onClick={() => logRevision.mutate()}
               disabled={logRevision.isPending}
-              className="ml-2 text-[14px] font-semibold text-accent-deep underline"
+              className="ml-2 whitespace-nowrap text-[14px] font-semibold text-accent-deep underline"
             >
               Log a revision
             </button>
@@ -100,7 +100,10 @@ function ProjectView({ project }: { project: Project }) {
           {project.source_language && `, ${project.source_language === "en" ? "English" : project.source_language}`}
         </Summary>
       </dl>
-      <div className="flex flex-wrap items-center gap-3 border-b border-line py-3 text-[15px]">
+      <div className="mt-5 grid gap-x-10 gap-y-10 min-[1100px]:grid-cols-[minmax(0,500px)_minmax(0,1fr)]">
+        <div className="order-2 min-w-0 min-[1100px]:order-1">
+          <Milestones project={project} />
+<div className="flex flex-wrap items-center gap-3 mt-6 border-t border-line pt-3 text-[15px]">
         <span className="text-muted">Client page:</span>
         <a href={project.client_path} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-semibold text-accent-deep underline">
           Open <ExternalLink size={14} aria-hidden />
@@ -114,10 +117,6 @@ function ProjectView({ project }: { project: Project }) {
         </button>
         <ErrorNote error={logRevision.error} />
       </div>
-
-      <div className="mt-8 grid gap-x-12 gap-y-10 min-[1100px]:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <div className="order-2 min-w-0 min-[1100px]:order-1">
-          <Milestones project={project} />
           <Activity project={project} />
         </div>
         <div className="order-1 min-w-0 min-[1100px]:order-2">

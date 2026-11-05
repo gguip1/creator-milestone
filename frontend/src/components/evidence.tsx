@@ -66,7 +66,7 @@ export function EvidenceTable({
             <div
               role="row"
               key={row.key}
-              className="grid gap-x-4 gap-y-2 border-b border-line py-3 md:grid-cols-[220px_1fr_144px_84px]"
+              className="grid gap-x-4 gap-y-2 border-b border-line py-2.5 md:grid-cols-[220px_1fr_144px_84px]"
             >
               <p role="cell" className="font-display text-[17px] leading-snug text-ink italic">
                 {row.quote ? `“${row.quote}”` : "—"}

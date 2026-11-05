@@ -65,7 +65,7 @@ export function ClientPage() {
               .filter((c) => c.status === "CLIENT_APPROVED")
               .map((c) => (
                 <p key={c.id} className="mt-5 flex items-center gap-2 rounded-[10px] bg-success-soft p-4 font-semibold text-success">
-                  <Check size={18} aria-hidden /> You approved change order #{c.number}, {formatMoney(c.total_minor_units, view.currency_code)}.
+                  <Check size={18} aria-hidden className="shrink-0" /> You approved change order #{c.number}, {formatMoney(c.total_minor_units, view.currency_code)}.
                   The scope is now v{view.scope_version}.
                 </p>
               ))}
@@ -73,7 +73,7 @@ export function ClientPage() {
               .filter((c) => c.status === "DECLINED")
               .map((c) => (
                 <p key={c.id} className="mt-5 flex items-center gap-2 rounded-[10px] bg-neutral-soft p-4 font-semibold text-neutral">
-                  <X size={18} aria-hidden /> You declined change order #{c.number}. Nothing will be billed for it.
+                  <X size={18} aria-hidden className="shrink-0" /> You declined change order #{c.number}. Nothing will be billed for it.
                 </p>
               ))}
 
@@ -211,7 +211,7 @@ function AcceptBar({ view, onAccept, pending, error }: { view: ClientView; onAcc
   if (view.client_accepted) {
     return (
       <p className="mt-8 flex items-center gap-2 rounded-[10px] bg-success-soft p-4 font-semibold text-success">
-        <Check size={18} aria-hidden /> You accepted scope v{view.scope_version}. {view.seller_display_name} will bill each stage through PayPal.
+        <Check size={18} aria-hidden className="shrink-0" /> You accepted scope v{view.scope_version}. {view.seller_display_name} will bill each stage through PayPal.
       </p>
     );
   }

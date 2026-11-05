@@ -122,7 +122,7 @@ export function Button({
 export function SandboxBanner({ notice = true }: { notice?: boolean }) {
   return (
     <div className="bg-ink text-white">
-      <div className="mx-auto flex max-w-[1440px] items-center gap-3 px-4 py-3 text-[16px] sm:px-10">
+      <div className="mx-auto flex max-w-[1440px] items-center gap-3 px-4 py-2 text-[16px] sm:px-10">
         <FlaskConical size={18} aria-hidden />
         <span className="font-semibold">Sandbox only — no real money</span>
         {notice && <span className="hidden text-white/80 sm:inline">PayPal sandbox test invoices</span>}
@@ -144,7 +144,7 @@ export function AppHeader({ projectId }: { projectId?: string | null }) {
     cx("py-1 text-[16px]", isActive ? "font-semibold text-ink" : "text-muted hover:text-ink");
   return (
     <header className="border-b border-line">
-      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-8 gap-y-2 px-4 py-4 sm:px-10">
+      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-8 gap-y-2 px-4 py-3 sm:px-10">
         <Wordmark to={projectId ? `/projects/${projectId}` : "/"} />
         <nav aria-label="Main" className="flex flex-wrap items-center gap-x-6 gap-y-1">
           {projectId && (
@@ -177,7 +177,7 @@ export function AppShell({ projectId, children }: { projectId?: string | null; c
     <>
       <SandboxBanner />
       <AppHeader projectId={projectId} />
-      <main className="mx-auto max-w-[1440px] px-4 pt-8 pb-16 sm:px-10">{children}</main>
+      <main className="mx-auto max-w-[1440px] px-4 pt-5 pb-16 sm:px-10">{children}</main>
     </>
   );
 }

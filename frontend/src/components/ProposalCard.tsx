@@ -117,6 +117,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
   const dismiss = useProjectMutation(project.id, () => api.dismissProposal(p.id));
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [fullDraft, setFullDraft] = useState(false);
 
   const working = approve.isPending || p.status === "APPROVED";
   const failed = p.status === "FAILED" && !approve.isPending;
@@ -226,7 +227,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
       )}
 
       {draft && (
-        <div className="bg-paper-deep px-5 py-4 sm:px-8">
+        <div className="bg-paper-deep px-5 py-3 sm:px-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-2 font-semibold">
               <MessageSquare size={16} aria-hidden /> Reply draft ready to copy
@@ -241,7 +242,10 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
               {copied ? "Copied" : "Copy reply"}
             </Button>
           </div>
-          <p className="mt-1 text-[15px] text-muted">“{draft}”</p>
+          <p className={cx("mt-1 text-[15px] text-muted", !fullDraft && "line-clamp-2")}>“{draft}”</p>
+          <button type="button" onClick={() => setFullDraft(!fullDraft)} className="mt-1 text-[14px] font-semibold text-accent-deep underline">
+            {fullDraft ? "Show less" : "Show the full reply"}
+          </button>
         </div>
       )}
 
@@ -249,7 +253,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
         <EditPanel proposal={p} project={project} onDone={() => { setEditing(false); refetch(); }} />
       )}
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-4 sm:px-8">
+      <div className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-4 sm:flex-nowrap sm:px-8">
         {working && (
           <Button pending block className="sm:w-full">
             {WORKING_LABEL[p.kind]}
@@ -275,7 +279,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
                 Edit scope
               </Link>
             ) : (
-              <p className="text-[14px] text-muted sm:ml-auto sm:max-w-[34ch] sm:text-right">{NEXT_NOTE[p.kind]}</p>
+              <p className="text-[14px] text-muted sm:ml-auto sm:max-w-[30ch] sm:text-right">{NEXT_NOTE[p.kind]}</p>
             )}
           </>
         )}

@@ -67,7 +67,15 @@ export function Landing() {
   const navigate = useNavigate();
   const demo = useMutation({
     mutationFn: api.demoReset,
-    onSuccess: (data) => navigate(`/projects/${data.project.id}/intake`),
+    onSuccess: (data) => {
+      try {
+        if (data.suggested_client_email) localStorage.setItem("suggestedEmail", data.suggested_client_email);
+        else localStorage.removeItem("suggestedEmail");
+      } catch {
+        /* storage may be blocked; the seller types the email instead */
+      }
+      navigate(`/projects/${data.project.id}/intake`);
+    },
   });
   const resume = lastProjectId();
 
