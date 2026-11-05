@@ -5,11 +5,13 @@ import { cx } from "./ui";
 
 export type ProvKind = "explicit" | "inferred" | "needs" | "unknown";
 
-const STYLE: Record<ProvKind, { label: string; tone: Tone; icon: LucideIcon; chip: string; mark: string }> = {
-  explicit: { label: "Explicit", tone: "success", icon: Quote, chip: "bg-success-soft text-success", mark: "bg-success-soft" },
-  inferred: { label: "Inferred", tone: "neutral", icon: Lightbulb, chip: "bg-neutral-soft text-neutral", mark: "bg-neutral-soft" },
-  needs: { label: "Needs confirmation", tone: "warn", icon: Flag, chip: "bg-warn-soft text-warn", mark: "bg-warn-soft ring-2 ring-warn" },
-  unknown: { label: "Unknown", tone: "warn", icon: CircleHelp, chip: "bg-warn-soft text-warn", mark: "bg-warn-soft" },
+// Where a term came from. Shown as a small text label with an icon (never color alone) and
+// deliberately not as a pill: pills are kept for real statuses.
+const STYLE: Record<ProvKind, { label: string; tone: Tone; icon: LucideIcon; text: string; mark: string }> = {
+  explicit: { label: "Explicit", tone: "success", icon: Quote, text: "text-neutral", mark: "bg-accent/20 underline decoration-accent decoration-1 underline-offset-4" },
+  inferred: { label: "Inferred", tone: "neutral", icon: Lightbulb, text: "text-muted", mark: "bg-white/10 underline decoration-line-strong decoration-dashed underline-offset-4" },
+  needs: { label: "Needs confirmation", tone: "warn", icon: Flag, text: "text-warn", mark: "bg-warn/20 underline decoration-warn decoration-2 underline-offset-4" },
+  unknown: { label: "Unknown", tone: "warn", icon: CircleHelp, text: "text-warn", mark: "bg-warn/10" },
 };
 
 /** Maps the backend's provenance and needs_confirmation to the four design states. */
@@ -20,10 +22,10 @@ export function provKind(field: ExtractedField | undefined): ProvKind {
 }
 
 export function ProvChip({ kind, className }: { kind: ProvKind; className?: string }) {
-  const { label, icon: Icon, chip } = STYLE[kind];
+  const { label, icon: Icon, text } = STYLE[kind];
   return (
-    <span className={cx("inline-flex w-fit items-center gap-1.5 rounded-md px-2.5 py-[5px] text-[14px] font-semibold", chip, className)}>
-      <Icon size={15} aria-hidden /> {label}
+    <span className={cx("inline-flex w-fit items-center gap-1.5 text-[13px] leading-5 font-medium", text, className)}>
+      <Icon size={13} aria-hidden /> {label}
     </span>
   );
 }
@@ -32,7 +34,7 @@ export const provMark = (kind: ProvKind) => STYLE[kind].mark;
 
 export function Marker({ n }: { n: number }) {
   return (
-    <span aria-label={`field ${n}`} className="ml-1 inline-flex size-[22px] items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-white">
+    <span aria-label={`field ${n}`} className="ml-1 inline-flex size-[20px] items-center justify-center rounded-full border border-line-strong font-sans text-[12px] font-medium text-ink">
       {n}
     </span>
   );

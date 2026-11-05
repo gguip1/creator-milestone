@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Languages, Lock, Shield, Sparkles } from "lucide-react";
+import { Check, Copy, Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { Marker, ProvChip, provKind, provMark, type ProvKind } from "../components/provenance";
-import { AiProgress, AppShell, Button, CharCount, Chip, cx, ErrorNote, Loading, Mono, PageTitle } from "../components/ui";
+import { AiProgress, AppShell, Button, CharCount, Chip, cx, ErrorNote, ExampleRow, Loading, Mono, NextCallout, PageTitle } from "../components/ui";
 import { api, ApiError, type ExtractedField, type IntakeAnalysis, type MilestonePlanEntry, type Project } from "../lib/api";
 import { EXAMPLE_INTAKE } from "../lib/examples";
 import { formatDate, formatMoney, moneyInput, parseMoney } from "../lib/format";
@@ -254,26 +254,32 @@ function IntakeView({ project }: { project: Project }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageTitle title="Review the client's request">
+      <div>
+        <PageTitle eyebrow="Steps 1 and 2 · Read the request, agree the scope" title="Review the client's request">
           Every field shows where it came from. If the message does not say it, the agent says so.
         </PageTitle>
-        <div className="flex flex-wrap gap-2" aria-label="Legend">
-          <ProvChip kind="explicit" />
-          <ProvChip kind="inferred" />
-          <ProvChip kind="needs" />
-          <ProvChip kind="unknown" />
-        </div>
       </div>
 
-      <div className="grid gap-6 min-[1000px]:grid-cols-2">
-        <section aria-labelledby="msg-h" className="rounded-2xl border border-line bg-surface p-6 sm:p-8">
+      {locked ? (
+        <NextCallout title="The scope is agreed" why="Go to the project to bill the first milestone and see the agent's cards.">
+          <Link to={`/projects/${project.id}`} className="inline-flex rounded-md border border-accent bg-accent px-5 py-2.5 font-medium text-on-accent hover:bg-accent-deep">Go to the project</Link>
+        </NextCallout>
+      ) : !analysis ? (
+        <NextCallout title="Paste the client's first message" why="The agent lists every term it can find, with the exact words it relied on. Use the example message if you do not have one." />
+      ) : missing.length > 0 ? (
+        <NextCallout title="Fill in what the message left open" why={`Still needed: ${missing.join(", ")}. These are your choices, not the agent's.`} />
+      ) : (
+        <NextCallout title="Accept the scope and share it with the client" why="Both of you accept before any invoice is made. Accepting sends no money." />
+      )}
+
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 min-[1000px]:grid-cols-2">
+        <section aria-labelledby="msg-h" className="rounded-lg border border-line p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="msg-h" className="font-display text-[28px]">Client message 1</h2>
-            <Chip icon={<Languages size={15} aria-hidden />}>{analysis ? languageName(analysis.source_language) : "Paste to start"}, pasted by Jiwoo</Chip>
+            <h2 id="msg-h" className="eyebrow">Client message 1</h2>
+            <p className="text-[14px] text-muted">{analysis ? languageName(analysis.source_language) : "Paste to start"}, pasted by Jiwoo</p>
           </div>
           {seg && analysis ? (
-            <p className="mt-5 text-[18px] leading-[2.1] whitespace-pre-wrap">
+            <p className="quote mt-5 text-[15px] leading-[2.2] whitespace-pre-wrap">
               {seg.parts.map((part, i) =>
                 part.row ? (
                   <mark key={i} className={cx("rounded-md px-1.5 py-0.5", provMark(part.row.kind))}>
@@ -294,7 +300,7 @@ function IntakeView({ project }: { project: Project }) {
                 onChange={(e) => setMessage(e.target.value)}
                 rows={9}
                 placeholder="Paste the client's first message here."
-                className="mt-4 w-full rounded-lg border border-line-strong bg-surface p-3 text-[17px] leading-relaxed"
+                className="quote mt-4 w-full rounded-md border border-line-strong bg-fill p-3 text-[15px]"
               />
             </>
           )}
@@ -305,13 +311,17 @@ function IntakeView({ project }: { project: Project }) {
               </Button>
             ) : (
               <>
-                <Button pending={analyze.isPending} disabled={!message.trim() || message.length > MAX_MESSAGE} icon={<Sparkles size={18} aria-hidden />} onClick={() => analyze.mutate()}>
+                <Button pending={analyze.isPending} disabled={!message.trim() || message.length > MAX_MESSAGE} onClick={() => analyze.mutate()}>
                   Analyze
                 </Button>
-                <Button variant="secondary" onClick={() => setMessage(EXAMPLE_INTAKE)}>Paste example</Button>
               </>
             )}
           </div>
+          {!analysis && !stored && (
+            <ExampleRow className="mt-4" button="Use example message" onUse={() => setMessage(EXAMPLE_INTAKE)}>
+              The demo client's first message. It only fills the box; nothing is analyzed until you press Analyze.
+            </ExampleRow>
+          )}
           {!analysis && <div className="mt-2"><CharCount length={message.length} limit={MAX_MESSAGE} /></div>}
           <AiProgress
             active={analyze.isPending}
@@ -324,13 +334,13 @@ function IntakeView({ project }: { project: Project }) {
               <p className="text-[14px] text-muted">Nothing was saved. You can try again, or fill the scope by hand below.</p>
             </div>
           )}
-          <p className="mt-6 flex items-center gap-2 rounded-lg bg-paper-deep px-3 py-2.5 text-[14px] text-muted">
-            <Shield size={15} aria-hidden className="shrink-0" /> Do not paste personal data. Demo messages may be read by the AI provider.
+          <p className="mt-6 rounded-md bg-fill px-3 py-2.5 text-[14px] leading-5 text-muted">
+            Do not paste personal data. Demo messages may be read by the AI provider.
           </p>
         </section>
 
-        <section aria-labelledby="found-h" className="rounded-2xl border border-line bg-surface p-6 sm:p-8">
-          <h2 id="found-h" className="font-display text-[28px]">What the agent found</h2>
+        <section aria-labelledby="found-h" className="rounded-lg border border-line p-6 sm:p-8">
+          <h2 id="found-h" className="eyebrow">What the agent found</h2>
           {analysis?.source === "cached" && (
             <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-muted">
               <Chip icon="clock">Cached analysis</Chip> The AI service is unavailable, so this is a saved result for the demo message.
@@ -345,13 +355,13 @@ function IntakeView({ project }: { project: Project }) {
               {rows.map((row) => (
                 <li
                   key={row.key}
-                  className={cx("flex items-start gap-3 border-b border-line px-1 py-3", (row.kind === "needs" || row.kind === "unknown") && "bg-warn-soft/70 px-3")}
+                  className={cx("flex items-start gap-3 border-b border-line px-1 py-3", (row.kind === "needs" || row.kind === "unknown") && "bg-warn-soft px-3")}
                 >
-                  <span aria-hidden className="mt-0.5 flex size-[22px] shrink-0 items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-white">
+                  <span aria-hidden className="mt-0.5 flex size-[22px] shrink-0 items-center justify-center rounded-full border border-line-strong text-[13px] font-medium text-ink">
                     {seg?.numbers.get(row.key) ?? "–"}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[16px] font-semibold">{row.text}</p>
+                    <p className="text-[16px]">{row.text}</p>
                     {row.note && <p className="text-[14px] text-muted">{row.note}</p>}
                   </div>
                   <ProvChip kind={row.kind} className="shrink-0" />
@@ -363,25 +373,23 @@ function IntakeView({ project }: { project: Project }) {
       </div>
 
       {analysis && (
-        <section aria-labelledby="reply-h" className="mt-6 rounded-2xl border border-line bg-surface p-6 sm:p-8">
+        <section aria-labelledby="reply-h" className="mt-6 rounded-lg border border-line p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="reply-h" className="flex items-center gap-2 font-display text-[28px]">
-              <Sparkles size={20} className="text-accent" aria-hidden /> Clarifying reply draft
-            </h2>
+            <h2 id="reply-h" className="eyebrow">Clarifying reply draft</h2>
             <Button variant="secondary" icon={<Copy size={17} aria-hidden />} onClick={async () => setCopied(await copyText(analysis.reply_draft_client))}>
               {copied ? "Copied" : "Copy reply"}
             </Button>
           </div>
           <div className={cx("mt-4 grid gap-6", showTranslation && "min-[1000px]:grid-cols-2 min-[1000px]:divide-x min-[1000px]:divide-line")}>
             <div lang={analysis.source_language}>
-              <p className="text-[14px] font-semibold text-muted">
+              <p className="text-[14px] text-muted">
                 {languageName(analysis.source_language)}: goes to the client{showTranslation ? "" : " (same language as yours, so no translation is needed)"}
               </p>
               <p className={cx("mt-2 whitespace-pre-wrap text-[16px] leading-relaxed", analysis.source_language === "ko" && "font-ko leading-[1.6]")}>{analysis.reply_draft_client}</p>
             </div>
             {showTranslation && (
               <div lang="ko" className="min-[1000px]:pl-6">
-                <p className="font-sans text-[14px] font-semibold text-muted">한국어: Jiwoo's translation, not sent</p>
+                <p className="font-sans text-[14px] text-muted">한국어: Jiwoo's translation, not sent</p>
                 <p className="mt-2 whitespace-pre-wrap font-ko text-[16px] leading-[1.6]">{analysis.reply_draft_seller_translation}</p>
               </div>
             )}
@@ -394,19 +402,19 @@ function IntakeView({ project }: { project: Project }) {
         </section>
       )}
 
-      <div className="mt-6 grid gap-6 min-[1000px]:grid-cols-2">
-        <section aria-labelledby="scope-h" className="rounded-2xl border border-line bg-surface p-6 sm:p-8">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 min-[1000px]:grid-cols-2">
+        <section aria-labelledby="scope-h" className="rounded-lg border border-line p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="scope-h" className="font-display text-[28px]">Scope, ready to edit</h2>
-            <Chip icon="file">Scope v{project.scope_version}, draft</Chip>
+            <h2 id="scope-h" className="eyebrow">Scope, ready to edit</h2>
+            <p className="font-mono text-[14px] text-neutral">Scope v{project.scope_version}, draft</p>
           </div>
           <div className="mt-5 grid gap-x-4 gap-y-5 sm:grid-cols-2">
             <FormField className="sm:col-span-2" label="Title" kind={kindOf("title")} value={form.title} onChange={set("title")} />
             <FormField label="Deliverables" kind={kindOf("deliverables")} value={form.deliverables} onChange={set("deliverables")} hint="Separate with ;" />
             <FormField label="File formats" kind={kindOf("file_formats")} value={form.fileFormats} onChange={set("fileFormats")} hint="Separate with ," />
             <FormField label="Deadline" type="date" kind={kindOf("deadline")} value={form.deadline} onChange={set("deadline")} />
-            <FormField label="Revisions included" kind={kindOf("revisions")} required value={form.revisions} onChange={set("revisions")} placeholder="Choose a number" inputMode="numeric" />
-            <FormField label="Usage rights" kind={kindOf("usage")} required value={form.usage} onChange={set("usage")} placeholder="Choose usage" list="usage-options" />
+            <FormField label="Revisions included" kind={kindOf("revisions")} required value={form.revisions} onChange={set("revisions")} placeholder="Example: 2" inputMode="numeric" />
+            <FormField label="Usage rights" kind={kindOf("usage")} required value={form.usage} onChange={set("usage")} placeholder="Example: Personal streaming" list="usage-options" />
             <datalist id="usage-options">
               <option value="Personal streaming" />
               <option value="Personal use only" />
@@ -417,27 +425,36 @@ function IntakeView({ project }: { project: Project }) {
             <FormField label="Currency" value={currency} onChange={() => undefined} readOnly />
             <FormField className="sm:col-span-2" label="Client name (optional)" value={form.clientName} onChange={set("clientName")} />
           </div>
+          {analysis && !locked && (!form.revisions.trim() || !form.usage.trim()) && (
+            <ExampleRow
+              className="mt-5"
+              button="Fill example values"
+              onUse={() => setForm((f) => ({ ...f, revisions: f.revisions.trim() || "2", usage: f.usage.trim() || "Personal streaming" }))}
+            >
+              For the open terms: revisions 2, usage Personal streaming. Use them only if you agree; you still accept the scope yourself.
+            </ExampleRow>
+          )}
         </section>
 
-        <section aria-labelledby="plan-h" className="self-start rounded-2xl border border-line bg-surface p-6 sm:p-8">
+        <section aria-labelledby="plan-h" className="self-start rounded-lg border border-line p-6 sm:p-8">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 id="plan-h" className="font-display text-[28px]">
-              Milestone plan: {plan.map((m) => m.pct).join(" / ")}
+            <h2 id="plan-h" className="eyebrow">
+              Milestone plan <span className="font-mono tracking-normal normal-case">{plan.map((m) => m.pct).join(" / ")}</span>
             </h2>
-            <p className="font-semibold">Total <Mono>{formatMoney(priceMinor ?? project.total_minor_units, currency)}</Mono></p>
+            <p className="text-[15px]"><span className="text-muted">Total</span> <Mono>{formatMoney(priceMinor ?? project.total_minor_units, currency)}</Mono></p>
           </div>
-          <div aria-hidden className="mt-4 flex h-14 overflow-hidden rounded-lg text-[14px]">
+          <div aria-hidden className="mt-4 flex h-14 overflow-hidden rounded-md text-[14px]">
             {plan.map((m, i) => (
-              <div key={i} style={{ flexGrow: bpFromPercent(m.pct) ?? 0 }} className={cx("flex items-center justify-center gap-2 border-r-2 border-paper font-mono", ["bg-[#E2DACB]", "bg-[#D5CBB8]", "bg-[#C4B8A0]"][i % 3])}>
+              <div key={i} style={{ flexGrow: bpFromPercent(m.pct) ?? 0 }} className={cx("flex items-center justify-center gap-2 border-r-2 border-canvas font-mono", ["bg-[#262626]", "bg-[#2f2f2f]", "bg-[#383838]"][i % 3])}>
                 {m.pct}% <span className="hidden sm:inline">{formatMoney(previewAmount(priceMinor, m.pct, m.amount, planUnchanged(project, plan)), currency)}</span>
               </div>
             ))}
           </div>
           <ol className="mt-3">
             {plan.map((m, i) => (
-              <li key={i} className="flex items-center justify-between gap-4 border-b border-line py-3">
+              <li key={i} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line py-3">
                 <div>
-                  <p className="font-semibold"><span className="mr-2 text-muted">{i + 1}</span>{m.title}</p>
+                  <p><span className="mr-2 font-mono text-muted">{i + 1}</span>{m.title}</p>
                   <p className="text-[14px] text-muted">{m.trigger === "ON_AGREEMENT" ? "Bills when both sides accept" : "Bills when the client approves the delivery"}</p>
                 </div>
                 <div className="flex items-center gap-4">
@@ -447,14 +464,14 @@ function IntakeView({ project }: { project: Project }) {
                     value={m.pct}
                     inputMode="decimal"
                     onChange={(e) => setPlan(plan.map((x, j) => (j === i ? { ...x, pct: e.target.value.replace(/%/g, "") } : x)))}
-                    className="w-16 rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-center font-mono text-[15px]"
+                    className="w-16 rounded-md border border-line-strong bg-fill px-2 py-1.5 text-center font-mono text-[15px]"
                   />
                   <Mono className="w-24 text-right">{formatMoney(previewAmount(priceMinor, m.pct, m.amount, planUnchanged(project, plan)), currency)}</Mono>
                 </div>
               </li>
             ))}
           </ol>
-          <p className={cx("mt-3 flex items-center gap-2 border-t-2 border-ink pt-3 font-semibold", planOk ? "text-success" : "text-warn")}>
+          <p className={cx("mt-3 flex items-center gap-2 border-t border-line-strong pt-3", planOk ? "text-success" : "text-warn")}>
             {planOk ? <Check size={16} aria-hidden /> : <Lock size={16} aria-hidden />}
             {planOk ? `Adds up to 100% and matches the ${formatMoney(priceMinor, currency)} price.` : `The plan adds up to ${pctSum / 100}%. It needs to be 100%.`}
           </p>
@@ -469,7 +486,7 @@ function IntakeView({ project }: { project: Project }) {
               {missing.length > 0 && <Lock size={17} aria-hidden />}
               Accept scope v{project.scope_version} and share with client
             </Button>
-            {missing.length > 0 && <p className="mt-3 text-center text-[15px] font-semibold text-warn">{blockedText}</p>}
+            {missing.length > 0 && <p className="mt-3 text-center text-[15px] font-medium text-warn">{blockedText}</p>}
             {locked && <p className="mt-3 text-center text-[15px] text-muted">The scope is agreed. Changes now go through a change order.</p>}
             <div className="mt-3"><ErrorNote error={accept.error} /></div>
           </div>
@@ -521,7 +538,7 @@ function FormField({
   return (
     <div className={className}>
       <div className="flex items-center justify-between gap-2">
-        <label className="font-semibold" htmlFor={`f-${label}`}>{label}</label>
+        <label className="text-[15px]" htmlFor={`f-${label}`}>{label}</label>
         {kind && <ProvChip kind={kind} />}
       </div>
       <input
@@ -531,10 +548,10 @@ function FormField({
         aria-required={required}
         {...input}
         className={cx(
-          "mt-1.5 w-full rounded-lg border bg-surface px-3 py-3 text-[16px]",
+          "mt-1.5 w-full rounded-md border bg-fill px-3 py-3 text-[16px]",
           mono && "font-mono",
-          needs ? "border-2 border-warn bg-warn-soft/40" : "border-line-strong",
-          input.readOnly && "bg-paper-deep text-muted",
+          needs ? "border-2 border-warn bg-warn-soft" : "border-line-strong",
+          input.readOnly && "text-muted",
         )}
       />
       {hint && <p className="mt-1 text-[13px] text-muted">{hint}</p>}

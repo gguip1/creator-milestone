@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Plug } from "lucide-react";
 import { useEffect, useState } from "react";
-import { AppShell, Button, Chip, ErrorNote, Loading, PageTitle } from "../components/ui";
+import { AppShell, Button, Chip, ErrorNote, ExampleRow, Loading, NextCallout, PageTitle } from "../components/ui";
 import { api, type RateCardItem } from "../lib/api";
 import { formatMoney, moneyInput, parseMoney } from "../lib/format";
 import { lastProjectId } from "../lib/hooks";
@@ -35,15 +35,16 @@ export function SettingsPage() {
   });
 
   const token = health.data?.paypal.token_ok;
-  const input = "rounded-lg border border-line-strong bg-surface px-3 py-2 text-[16px]";
+  const input = "rounded-md border border-line-strong bg-fill px-3 py-2 text-[16px]";
 
   return (
     <AppShell projectId={lastProjectId()}>
-      <PageTitle title="Settings">Your rate card prices extras. PayPal is the only payment rail, and it runs in the sandbox.</PageTitle>
+      <PageTitle eyebrow="Workspace" title="Settings">Your rate card prices extras. PayPal is the only payment rail, and it runs in the sandbox.</PageTitle>
+      <NextCallout title="Optional: check your prices" why="Settings are not part of the demo steps. Scope Guard prices every extra from this rate card, so change a price here only if you want a different quote on the next message." />
       <div className="grid gap-6 min-[1000px]:grid-cols-[3fr_2fr]">
-        <section aria-labelledby="rate-h" className="rounded-2xl border border-line bg-surface p-6 sm:p-8">
-          <h2 id="rate-h" className="font-display text-[28px]">Rate card</h2>
-          <p className="mt-1 text-[15px] text-muted">Scope Guard prices every extra from this list. The AI never sets a price.</p>
+        <section aria-labelledby="rate-h" className="rounded-lg border border-line p-6 sm:p-8">
+          <h2 id="rate-h" className="eyebrow">Rate card</h2>
+          <p className="mt-3 text-[15px] text-muted">Scope Guard prices every extra from this list. The AI never sets a price.</p>
           {card.isPending && <Loading />}
           <ul className="mt-4 divide-y divide-line border-y border-line">
             {rows.map((r, i) => (
@@ -59,12 +60,15 @@ export function SettingsPage() {
               </li>
             ))}
           </ul>
+          <ExampleRow className="mt-4">
+            Change the price of one extra, for example Extra outfit from 80.00 to 90.00, and press Save rate card. The next Scope Guard check uses the new price.
+          </ExampleRow>
           <div className="mt-4 flex flex-wrap items-end gap-3">
-            <label className="text-[14px] font-semibold">New item
-              <input className={`${input} mt-1 block font-normal`} value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} placeholder="Name" />
+            <label className="text-[14px] font-medium">New item
+              <input className={`${input} mt-1 block font-normal`} value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} placeholder="Example: Background" />
             </label>
-            <label className="text-[14px] font-semibold">Price
-              <input inputMode="decimal" className={`${input} mt-1 block w-28 text-right font-mono font-normal`} value={add.price} onChange={(e) => setAdd({ ...add, price: e.target.value })} placeholder="0.00" />
+            <label className="text-[14px] font-medium">Price
+              <input inputMode="decimal" className={`${input} mt-1 block w-28 text-right font-mono font-normal`} value={add.price} onChange={(e) => setAdd({ ...add, price: e.target.value })} placeholder="Example: 40.00" />
             </label>
             <Button
               variant="secondary"
@@ -83,18 +87,18 @@ export function SettingsPage() {
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <Button pending={save.isPending} blocked={bad} onClick={() => save.mutate()} icon={<Check size={18} aria-hidden />}>Save rate card</Button>
             {saved && <Chip tone="success" icon="check">Saved</Chip>}
-            {bad && <span className="text-[14px] font-semibold text-warn">Every item needs a name and a price like 20.00.</span>}
+            {bad && <span className="text-[14px] font-medium text-warn">Every item needs a name and a price like 20.00.</span>}
           </div>
           <div className="mt-3"><ErrorNote error={save.error} /></div>
           {card.data && <p className="mt-3 text-[14px] text-muted">Currency: {card.data.currency_code}. Example: {formatMoney(2000, card.data.currency_code)}.</p>}
         </section>
 
-        <section aria-labelledby="pp-h" className="self-start rounded-2xl border border-line bg-surface p-6 sm:p-8">
-          <h2 id="pp-h" className="font-display text-[28px]">PayPal connection</h2>
-          <p className="mt-1 text-[15px] text-muted">A connection check only. No keys or secrets are shown here.</p>
+        <section aria-labelledby="pp-h" className="self-start rounded-lg border border-line p-6 sm:p-8">
+          <h2 id="pp-h" className="eyebrow">PayPal connection</h2>
+          <p className="mt-3 text-[15px] text-muted">A connection check only. No keys or secrets are shown here.</p>
           <dl className="mt-4 divide-y divide-line border-y border-line text-[16px]">
-            <div className="flex justify-between py-2.5"><dt className="text-muted">Environment</dt><dd className="font-semibold">{health.data?.paypal.environment ?? "—"}</dd></div>
-            <div className="flex justify-between py-2.5"><dt className="text-muted">Credentials</dt><dd className="font-semibold">{health.data ? (health.data.paypal.configured ? "Configured" : "Not configured") : "—"}</dd></div>
+            <div className="flex justify-between py-2.5"><dt className="text-muted">Environment</dt><dd>{health.data?.paypal.environment ?? "—"}</dd></div>
+            <div className="flex justify-between py-2.5"><dt className="text-muted">Credentials</dt><dd>{health.data ? (health.data.paypal.configured ? "Configured" : "Not configured") : "—"}</dd></div>
             <div className="flex items-center justify-between py-2.5">
               <dt className="text-muted">Token check</dt>
               <dd>

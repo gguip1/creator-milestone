@@ -1,56 +1,120 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens. Every color, font, and radius used in the UI comes from this block.
+ * Dark only: one near-black canvas, hairline borders instead of shadows, one green accent.
+ * Contrast of each text pair is listed in docs/design-contrast.md.
+ */
 @theme {
-  --color-paper: #faf7f2;
-  --color-paper-deep: #f3eee5;
-  --color-surface: #ffffff;
-  --color-ink: #1f2328;
-  --color-muted: #5f636a;
-  --color-line: #e7e2d9;
-  --color-line-strong: #8f897e;
-  --color-accent: #2563eb;
-  --color-accent-deep: #1d4ed8;
-  --color-accent-soft: #e8effd;
-  --color-success: #1b6b45;
-  --color-success-soft: #e3f1e8;
-  --color-warn: #8a5200;
-  --color-warn-soft: #fbefd5;
-  --color-danger: #a92f25;
-  --color-danger-soft: #fbe8e4;
-  --color-neutral: #4a4e55;
-  --color-neutral-soft: #efebe3;
+  /* Surfaces */
+  --color-canvas: #101010;
+  --color-fill: #1a1a1a; /* inputs, code-like blocks, quiet panels */
+  --color-line: #3d3a39; /* hairline: cards and dividers */
+  --color-line-strong: #86807d; /* control borders: 3:1 against the canvas */
 
-  --font-sans: "Instrument Sans", system-ui, sans-serif;
-  --font-serif: "Newsreader", Georgia, serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --font-ko: "Noto Sans KR", sans-serif;
+  /* Text */
+  --color-ink: #f2f0ee;
+  --color-muted: #a9a4a1;
+  --color-neutral: #cfcac7;
+
+  /* The one accent. Used for primary actions, "awaiting your decision", and Paid via PayPal. */
+  --color-accent: #00d992;
+  --color-accent-deep: #00b87a; /* hover */
+  --color-on-accent: #101010;
+  --color-link: #10b981; /* inline links only; never body text */
+  --color-accent-soft: #0d2a21;
+  --color-success: #00d992;
+  --color-success-soft: #0d2a21;
+
+  /* States that need attention. Muted amber for warnings; red only for failures. */
+  --color-warn: #f2b84b;
+  --color-warn-soft: #2a2110;
+  --color-danger: #ff8c82;
+  --color-danger-soft: #2e1816;
+  --color-neutral-soft: #1a1a1a;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Noto Sans KR", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-ko: "Noto Sans KR", "Inter", sans-serif;
+
+  --radius-button: 6px;
+  --radius-card: 8px;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
+  color-scheme: dark;
 }
 
 body {
-  background: var(--color-paper);
+  background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 16px;
+  line-height: 26px;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Visible keyboard focus everywhere; mouse clicks stay quiet. */
+/* Visible keyboard focus on the dark canvas; mouse clicks stay quiet. */
 :focus-visible {
-  outline: 3px solid var(--color-accent);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-button);
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
 }
 
 mark {
   color: inherit;
 }
 
+input,
+textarea {
+  color: var(--color-ink);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-muted);
+}
+
+input[type="date"] {
+  color-scheme: dark;
+}
+
+/* Calm display type: Inter at weight 400, tightened slightly. Never heavy. */
 .font-display {
-  font-family: var(--font-serif);
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* Tracked uppercase label above a section. */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* The client's own words, money, ids, and times read as code-like text. */
+.quote {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

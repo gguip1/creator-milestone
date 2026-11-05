@@ -276,6 +276,18 @@ async def test_questions_list_every_open_term():
     assert "Worth $5?" not in analysis.questions
 
 
+async def test_questions_follow_the_clients_language():
+    analysis = await analyze(
+        "안녕하세요, 일러스트를 부탁드립니다.",
+        source_language="ko",
+        other_questions=["캐릭터는 사람인가요?"],
+    )
+    assert analysis.source_language == "ko"
+    assert "정확히 어떤 결과물이 필요하신가요?" in analysis.questions
+    assert "캐릭터는 사람인가요?" in analysis.questions
+    assert not any(question.isascii() for question in analysis.questions)
+
+
 async def test_client_payment_question_is_not_asked_back():
     analysis = await analyze(other_questions=["How does payment work?"])
     assert "How does payment work?" not in analysis.questions
