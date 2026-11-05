@@ -1,0 +1,13 @@
+**/.env
+**/.env.*
+**/.venv
+**/node_modules
+**/__pycache__
+**/*.db
+.git
+.claude
+design
+docs
+frontend/dist
+backend/smoke-results
+backend/tests
