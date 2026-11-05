@@ -1,0 +1,39 @@
+{
+  "message": "Love the sketch!! Could you also add a second outfit, maybe a casual hoodie version? And can we do one more pass on the face? Also I might use it on merch later.",
+  "model_id": "gemini-3.1-flash-lite",
+  "source_language": "en",
+  "items": [
+    {
+      "request_summary": "Add a second outfit to the illustration.",
+      "summary_ko": "일러스트에 두 번째 의상을 추가합니다.",
+      "quote": "add a second outfit, maybe a casual hoodie version",
+      "topic": "outfit",
+      "classification": "out_of_scope",
+      "clause_ref": "deliverables",
+      "rate_card_name": "Extra outfit",
+      "quantity": 1
+    },
+    {
+      "request_summary": "Request for one additional revision on the face.",
+      "summary_ko": "얼굴에 대한 추가 수정 요청입니다.",
+      "quote": "can we do one more pass on the face",
+      "topic": "face",
+      "classification": "exceeds_limit",
+      "clause_ref": "revisions",
+      "rate_card_name": "Extra revision",
+      "quantity": 1
+    },
+    {
+      "request_summary": "Inquiry about potential future usage on merchandise.",
+      "summary_ko": "향후 굿즈 제작을 위한 사용 가능 여부 문의입니다.",
+      "quote": "I might use it on merch later",
+      "topic": "merch",
+      "classification": "question",
+      "clause_ref": "usage_rights",
+      "rate_card_name": "Commercial license add-on",
+      "quantity": 1
+    }
+  ],
+  "client_draft": "Thank you so much for your kind message, I am really happy to work on this with you! Adding a second outfit goes beyond the one full-body illustration we agreed on, so it would be an extra at {{PRICE_1}}. A further revision on the face goes past the revision rounds included in our agreement, so it would be {{PRICE_2}}. Together that comes to {{TOTAL}}.\n\nSeparately, you mentioned potential future usage on merch. Nothing is being charged for that now. What would you like to do when you decide?\n\nIf the extras work for you, I will send a change order for your approval and start once it is approved.",
+  "seller_draft": "따뜻한 메시지 정말 감사합니다, 함께 작업하게 되어 정말 기쁩니다! 두 번째 outfit을 추가하는 것은 저희가 합의한 전신 일러스트 한 점의 범위를 넘어서는 작업이므로 {{PRICE_1}}의 추가 비용이 발생합니다. face에 대한 추가 수정은 저희 합의에 포함된 수정 횟수를 초과하므로 {{PRICE_2}}의 비용이 발생합니다. 합계는 {{TOTAL}}입니다.\n\n별도로, merch에 대한 향후 사용 가능성에 대해 언급해 주셨습니다. 이에 대해서는 현재 아무런 비용도 청구되지 않습니다. 결정하시면 어떻게 진행하고 싶으신가요?\n\n추가 작업 내용이 괜찮으시다면, 승인을 위한 변경 주문서를 보내드리고 승인되는 대로 작업을 시작하겠습니다."
+}

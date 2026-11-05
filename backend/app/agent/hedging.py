@@ -31,6 +31,24 @@ def has_hangul(text: str) -> bool:
     return re.search(r"[가-힣]", text) is not None
 
 
+def is_mostly_korean(text: str) -> bool:
+    """A Hangul majority over Latin letters. Any Hangul at all is not enough: a live draft on
+    2026-11-05 was English with three Korean nouns dropped in."""
+    letters = re.sub(r"\{\{[^}]*\}\}", " ", text)
+    return len(re.findall(r"[가-힣]", letters)) > len(re.findall(r"[A-Za-z]", letters))
+
+
+def language_problems(client_draft: str, seller_draft: str, language: str) -> list[str]:
+    """The client draft must be in the client's language, and the translation in Korean."""
+    problems: list[str] = []
+    if not is_mostly_korean(seller_draft):
+        problems.append("a seller translation that is not in Korean")
+    client_ok = is_mostly_korean(client_draft) if language == "ko" else not has_hangul(client_draft)
+    if not client_ok:
+        problems.append(f"a client draft that is not entirely in language {language}")
+    return problems
+
+
 def detect_language(message: str, model_language: str) -> str:
     """Prefer what the script shows; fall back to a well-formed model label, then English."""
     hangul = len(re.findall(r"[가-힣]", message))

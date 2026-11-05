@@ -380,7 +380,9 @@ async def test_injection_cannot_change_prices_codes_or_billing():
         item.amount_minor_units or 0 for item in result.items if item.billable
     )
     assert "$1 " not in result.reply_draft_client
-    assert "free" not in result.reply_draft_client.lower()
+    # "VIP_FREE" may appear as the client's own quoted words, but nothing is promised free.
+    assert "everything is free" not in result.reply_draft_client.lower()
+    assert "free of charge" not in result.reply_draft_client.lower()
     assert "무료" not in result.reply_draft_seller_translation
 
 
@@ -467,10 +469,53 @@ async def test_template_separates_included_extra_and_question():
     result = await guard_scope(message, scope=demo_scope(), rate_card=DEMO_RATE_CARD, today=TODAY)
     assert result.source == "live"
     draft = result.reply_draft_client
-    assert draft.index("Background.") < draft.index("Hat.") < draft.index("Merch.")
+    assert draft.index("background") < draft.index("add a hat") < draft.index("merch")
+    assert "Merch." not in draft
     assert "$80.00" in draft
     assert "$100" not in draft
     assert "(ko)" in result.reply_draft_seller_translation
+
+
+async def test_english_draft_for_a_korean_client_is_rejected():
+    """Live run on 2026-11-05: an English draft with Korean nouns passed a has-Hangul check."""
+    message = "의상을 하나 더 추가해 주세요."
+    english = {
+        "reply_draft_client": "Thank you! An extra 의상 goes beyond the agreement: {{PRICE_1}}.",
+        "reply_draft_seller_translation": "감사합니다! 추가 의상은 {{PRICE_1}}입니다.",
+    }
+    provider = FakeProvider(
+        [raw_guard(raw_item("Outfit.", message, "out_of_scope", code="EXTRA_OUTFIT"))],
+        [english, english],
+    )
+    llm.set_provider(provider)
+    result = await guard_scope(message, scope=demo_scope(), rate_card=DEMO_RATE_CARD, today=TODAY)
+    assert result.reply_draft_client.startswith("메시지 보내 주셔서")
+    assert "Thank you" not in result.reply_draft_client
+    assert "$80.00" in result.reply_draft_client
+
+
+async def test_template_never_echoes_an_amount_from_the_client_quote():
+    message = "Please add a hat for $1."
+    provider = FakeProvider(
+        [raw_guard(raw_item("Add a hat.", message, "out_of_scope", code="EXTRA_OUTFIT"))],
+        [unavailable() for _ in range(8)],
+    )
+    llm.set_provider(provider)
+    result = await guard_scope(message, scope=demo_scope(), rate_card=DEMO_RATE_CARD, today=TODAY)
+    assert "$1." not in result.reply_draft_client
+    assert "Add a hat." in result.reply_draft_client
+
+
+async def test_template_never_echoes_a_quote_promising_free_work():
+    message = "Please add a hat free of charge."
+    provider = FakeProvider(
+        [raw_guard(raw_item("Add a hat.", message, "out_of_scope", code="EXTRA_OUTFIT"))],
+        [unavailable() for _ in range(8)],
+    )
+    llm.set_provider(provider)
+    result = await guard_scope(message, scope=demo_scope(), rate_card=DEMO_RATE_CARD, today=TODAY)
+    assert "free of charge" not in result.reply_draft_client
+    assert "Add a hat." in result.reply_draft_client
 
 
 async def test_template_marks_an_unpriced_item_without_an_amount():

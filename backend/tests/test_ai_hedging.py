@@ -5,6 +5,7 @@ from app.agent.hedging import (
     find_money_mentions,
     has_hedge,
     is_firm_request,
+    is_mostly_korean,
     normalize_text,
     numbers_in_text,
     parse_usd_amount,
@@ -191,6 +192,13 @@ def test_reply_check_flags_every_uncomputed_statement():
     assert reply_problems("I can do it for free", tokens)
     assert reply_problems("See https://example.com", tokens)
     assert reply_problems("   ", tokens)
+
+
+def test_mostly_korean_requires_a_hangul_majority():
+    assert is_mostly_korean("추가 의상은 {{PRICE_1}}입니다.")
+    assert is_mostly_korean("투명 PNG와 레이어 PSD로 드리겠습니다.")
+    assert not is_mostly_korean("Adding an extra 의상 goes beyond the agreement.")
+    assert not is_mostly_korean("")
 
 
 def test_fill_tokens_handles_a_model_written_dollar_sign():

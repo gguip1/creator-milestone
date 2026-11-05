@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from app.agent import cached, intake, llm, scope_guard
-from app.agent.hedging import find_money_mentions, has_hangul, normalize_text
+from app.agent.hedging import find_money_mentions, has_hangul, is_mostly_korean, normalize_text
 from app.agent.intake import analyze_intake
 from app.agent.scope_guard import cache_payload, run_live_guard
 from app.config import get_settings
@@ -150,11 +150,11 @@ def prices_match_card(result: ScopeGuardResult) -> bool:
 
 
 def seller_in_korean(result: Any) -> bool:
-    return has_hangul(result.reply_draft_seller_translation)
+    return is_mostly_korean(result.reply_draft_seller_translation)
 
 
 def client_in_korean(result: Any) -> bool:
-    return has_hangul(result.reply_draft_client)
+    return is_mostly_korean(result.reply_draft_client)
 
 
 def client_in_english(result: Any) -> bool:
@@ -442,7 +442,9 @@ async def main(args: argparse.Namespace) -> int:
     llm.set_provider(metered)
     print(f"Model chain: {llm.model_chain()}; budget: {args.budget} calls")
 
-    cases = [case for case in CASES if not args.only or case.name in args.only]
+    # --only runs in the order given, so the most important cases get the budget first.
+    by_name = {case.name: case for case in CASES}
+    cases = [by_name[name] for name in args.only] if args.only else CASES
     total_passed = total_failed = 0
     dump: dict[str, Any] = {}
     stopped = None

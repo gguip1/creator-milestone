@@ -1,0 +1,92 @@
+{
+  "message": "Hi! I need a full-body illustration of my original character for my VTuber debut, transparent PNG plus layered PSD, around November 25. I'd like a sketch review before coloring. My budget is USD 300. Maybe two rounds of revisions? Please let me know how payment works.",
+  "analysis": {
+    "source_language": "en",
+    "title": {
+      "value": "full-body illustration of my original character",
+      "provenance": "explicit",
+      "quote": "full-body illustration of my original character",
+      "quote_verified": true,
+      "needs_confirmation": false
+    },
+    "deliverables": [
+      {
+        "value": "full-body illustration of my original character",
+        "provenance": "explicit",
+        "quote": "full-body illustration of my original character",
+        "quote_verified": true,
+        "needs_confirmation": false
+      }
+    ],
+    "file_formats": [
+      {
+        "value": "transparent PNG",
+        "provenance": "explicit",
+        "quote": "transparent PNG",
+        "quote_verified": true,
+        "needs_confirmation": false
+      },
+      {
+        "value": "layered PSD",
+        "provenance": "explicit",
+        "quote": "layered PSD",
+        "quote_verified": true,
+        "needs_confirmation": false
+      }
+    ],
+    "deadline": {
+      "value": "2026-11-25",
+      "provenance": "inferred",
+      "quote": "November 25",
+      "quote_verified": true,
+      "needs_confirmation": true
+    },
+    "revisions": {
+      "value": "2",
+      "provenance": "inferred",
+      "quote": "two rounds of revisions",
+      "quote_verified": true,
+      "needs_confirmation": true
+    },
+    "usage_rights": {
+      "value": null,
+      "provenance": "unknown",
+      "quote": "",
+      "quote_verified": false,
+      "needs_confirmation": true
+    },
+    "budget": {
+      "value": "USD 300.00",
+      "provenance": "explicit",
+      "quote": "USD 300",
+      "quote_verified": true,
+      "needs_confirmation": false
+    },
+    "budget_minor_units": 30000,
+    "currency_code": "USD",
+    "client_email": {
+      "value": null,
+      "provenance": "unknown",
+      "quote": "",
+      "quote_verified": false,
+      "needs_confirmation": true
+    },
+    "sketch_review_requested": {
+      "value": "yes",
+      "provenance": "explicit",
+      "quote": "I'd like a sketch review before coloring.",
+      "quote_verified": true,
+      "needs_confirmation": false
+    },
+    "questions": [
+      "How will the artwork be used (personal or commercial)?",
+      "Which email address should receive the invoices?",
+      "Can you confirm the deadline?",
+      "Can you confirm how many revision rounds should be included?"
+    ],
+    "reply_draft_client": "Thank you so much for reaching out with your project idea! I am happy to confirm that we are set for a full-body illustration of your original character, delivered as a transparent PNG and a layered PSD, with a sketch review before coloring and a total budget of $300.00. Could you please confirm if November 25, 2026 works well as the deadline for you? Also, would you be able to confirm if 2 revision rounds will be enough for your needs? For payment, I typically suggest a schedule invoiced through PayPal consisting of a 30% deposit ($90.00), 30% at sketch approval ($90.00), and 40% at final delivery ($120.00). Could you let me know how the artwork will be used, for example personal or commercial? Lastly, could you share the email address that should receive invoices?",
+    "reply_draft_seller_translation": "프로젝트 아이디어로 연락 주셔서 정말 감사합니다! 오리지널 캐릭터의 전신 일러스트레이션을 진행하고, 투명 PNG와 레이어 PSD 파일 형식으로 전달해 드리며, 채색 전 스케치 검토와 총 예산 $300.00의 조건이 잘 확정되었습니다. 마감일은 2026년 11월 25일로 괜찮으신지 확인해 주실 수 있으신가요? 또한 수정 횟수는 2회가 적당한지 확인해 주실 수 있을까요? 결제와 관련하여 페이팔을 통한 청구서 발행으로 30% 계약금 ($90.00), 스케치 승인 시 30% ($90.00), 최종 전달 시 40% ($120.00)의 일정 조율을 제안해 드립니다. 아트워크가 개인용인지 상업용인지 등 사용 목적이 어떻게 되는지 알려주시겠어요? 마지막으로 청구서를 받을 이메일 주소를 공유해 주실 수 있으신가요?",
+    "source": "live",
+    "model_id": "gemini-3.5-flash-lite"
+  }
+}
