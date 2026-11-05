@@ -3,11 +3,28 @@ import { Check, Copy, Languages, Lock, Shield, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Marker, ProvChip, provKind, provMark, type ProvKind } from "../components/provenance";
-import { AppShell, Button, Chip, cx, ErrorNote, Loading, Mono, PageTitle } from "../components/ui";
+import { AiProgress, AppShell, Button, CharCount, Chip, cx, ErrorNote, Loading, Mono, PageTitle } from "../components/ui";
 import { api, ApiError, type ExtractedField, type IntakeAnalysis, type MilestonePlanEntry, type Project } from "../lib/api";
 import { EXAMPLE_INTAKE } from "../lib/examples";
 import { formatDate, formatMoney, moneyInput, parseMoney } from "../lib/format";
 import { copyText, useProject } from "../lib/hooks";
+import { MissingProject } from "./Project";
+
+/** English name of an ISO 639-1 label from the analysis, never assumed to be English. */
+function languageName(code: string): string {
+  try {
+    return new Intl.DisplayNames(["en"], { type: "language" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+/** A firm term the client stated outright can fill the form; anything else stays the seller's choice. */
+function firmValue(field: ExtractedField): string | null {
+  return field.value && field.provenance === "explicit" && !field.needs_confirmation ? field.value : null;
+}
+
+const MAX_MESSAGE = 5000; // Same limit as the server; the server answers with it if this drifts.
 
 type Row = { key: string; label: string; field?: ExtractedField; text: string; note?: string; kind: ProvKind };
 
@@ -40,8 +57,10 @@ function buildRows(a: IntakeAnalysis): Row[] {
   add("sketch", "Sketch review", a.sketch_review_requested, a.sketch_review_requested.value === "yes" ? "Before coloring" : (a.sketch_review_requested.value ?? ""));
   add("budget", "Budget", a.budget, a.budget.value ?? "");
   add("revisions", "Revisions", a.revisions, a.revisions.value ?? "");
-  add("usage", "Usage rights", a.usage_rights, a.usage_rights.value ?? "", { note: "Not in the message. A VTuber debut does not imply commercial use." });
-  add("email", "Client email", a.client_email, a.client_email.value ?? "", { note: "Not in the message. Needed before any invoice." });
+  add("usage", "Usage rights", a.usage_rights, a.usage_rights.value ?? "", {
+    note: a.usage_rights.value ? undefined : "The message does not say how the art will be used. Usage is never guessed from context.",
+  });
+  add("email", "Client email", a.client_email, a.client_email.value ?? "", { note: a.client_email.value ? undefined : "Not in the message. Needed before any invoice." });
   return rows;
 }
 
@@ -103,8 +122,9 @@ function formFromAnalysis(a: IntakeAnalysis, project: Project): Form {
     deliverables: a.deliverables.map((d) => d.value).filter(Boolean).join("; "),
     fileFormats: a.file_formats.map((d) => d.value).filter(Boolean).join(", "),
     deadline,
-    revisions: "", // always the seller's choice: the client only said "maybe"
-    usage: "",
+    // Only a firm, quote-verified statement fills these; a hedge ("maybe two") stays the seller's choice.
+    revisions: /^\d+$/.test(firmValue(a.revisions) ?? "") ? firmValue(a.revisions)! : "",
+    usage: firmValue(a.usage_rights) ?? "",
     email: a.client_email.value ?? project.client_email ?? suggestedEmail(),
     price: moneyInput(a.budget_minor_units, a.currency_code ?? "USD"),
     clientName: project.client_display_name,
@@ -138,7 +158,11 @@ export function IntakePage() {
   return (
     <AppShell projectId={id}>
       {query.isPending && <Loading label="Loading project…" />}
-      {query.isError && <ErrorNote error={query.error} />}
+      {query.isError && query.error instanceof ApiError && query.error.status === 404 ? (
+        <MissingProject />
+      ) : (
+        query.isError && <ErrorNote error={query.error} />
+      )}
       {query.data && <IntakeView project={query.data} />}
     </AppShell>
   );
@@ -174,6 +198,9 @@ function IntakeView({ project }: { project: Project }) {
   });
 
   const rows = useMemo(() => (analysis ? buildRows(analysis) : []), [analysis]);
+  // Jiwoo reads Korean, so a Korean client's reply needs no second copy.
+  const showTranslation =
+    !!analysis && analysis.source_language !== "ko" && analysis.reply_draft_seller_translation.trim() !== analysis.reply_draft_client.trim();
   const seg = useMemo(() => (analysis ? segments(analyzedText, rows) : null), [analysis, analyzedText, rows]);
 
   const currency = project.currency_code;
@@ -243,7 +270,7 @@ function IntakeView({ project }: { project: Project }) {
         <section aria-labelledby="msg-h" className="rounded-2xl border border-line bg-surface p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="msg-h" className="font-display text-[28px]">Client message 1</h2>
-            <Chip icon={<Languages size={15} aria-hidden />}>{analysis ? "English" : "Paste to start"}, pasted by Jiwoo</Chip>
+            <Chip icon={<Languages size={15} aria-hidden />}>{analysis ? languageName(analysis.source_language) : "Paste to start"}, pasted by Jiwoo</Chip>
           </div>
           {seg && analysis ? (
             <p className="mt-5 text-[18px] leading-[2.1] whitespace-pre-wrap">
@@ -266,7 +293,6 @@ function IntakeView({ project }: { project: Project }) {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={9}
-                maxLength={5000}
                 placeholder="Paste the client's first message here."
                 className="mt-4 w-full rounded-lg border border-line-strong bg-surface p-3 text-[17px] leading-relaxed"
               />
@@ -279,13 +305,19 @@ function IntakeView({ project }: { project: Project }) {
               </Button>
             ) : (
               <>
-                <Button pending={analyze.isPending} disabled={!message.trim()} icon={<Sparkles size={18} aria-hidden />} onClick={() => analyze.mutate()}>
+                <Button pending={analyze.isPending} disabled={!message.trim() || message.length > MAX_MESSAGE} icon={<Sparkles size={18} aria-hidden />} onClick={() => analyze.mutate()}>
                   Analyze
                 </Button>
                 <Button variant="secondary" onClick={() => setMessage(EXAMPLE_INTAKE)}>Paste example</Button>
               </>
             )}
           </div>
+          {!analysis && <div className="mt-2"><CharCount length={message.length} limit={MAX_MESSAGE} /></div>}
+          <AiProgress
+            active={analyze.isPending}
+            task="Analyzing the client's message"
+            stages={["Reading the message", "Checking evidence for each term", "Drafting the clarifying reply"]}
+          />
           {analyzeError && (
             <div className="mt-3 space-y-2">
               <ErrorNote error={analyzeError} />
@@ -340,15 +372,19 @@ function IntakeView({ project }: { project: Project }) {
               {copied ? "Copied" : "Copy reply"}
             </Button>
           </div>
-          <div className="mt-4 grid gap-6 min-[1000px]:grid-cols-2 min-[1000px]:divide-x min-[1000px]:divide-line">
-            <div>
-              <p className="text-[14px] font-semibold text-muted">English: goes to the client</p>
-              <p className="mt-2 whitespace-pre-wrap text-[16px] leading-relaxed">{analysis.reply_draft_client}</p>
+          <div className={cx("mt-4 grid gap-6", showTranslation && "min-[1000px]:grid-cols-2 min-[1000px]:divide-x min-[1000px]:divide-line")}>
+            <div lang={analysis.source_language}>
+              <p className="text-[14px] font-semibold text-muted">
+                {languageName(analysis.source_language)}: goes to the client{showTranslation ? "" : " (same language as yours, so no translation is needed)"}
+              </p>
+              <p className={cx("mt-2 whitespace-pre-wrap text-[16px] leading-relaxed", analysis.source_language === "ko" && "font-ko leading-[1.6]")}>{analysis.reply_draft_client}</p>
             </div>
-            <div lang="ko" className="min-[1000px]:pl-6">
-              <p className="font-sans text-[14px] font-semibold text-muted">한국어: Jiwoo's translation, not sent</p>
-              <p className="mt-2 whitespace-pre-wrap font-ko text-[16px] leading-[1.6]">{analysis.reply_draft_seller_translation}</p>
-            </div>
+            {showTranslation && (
+              <div lang="ko" className="min-[1000px]:pl-6">
+                <p className="font-sans text-[14px] font-semibold text-muted">한국어: Jiwoo's translation, not sent</p>
+                <p className="mt-2 whitespace-pre-wrap font-ko text-[16px] leading-[1.6]">{analysis.reply_draft_seller_translation}</p>
+              </div>
+            )}
           </div>
           {analysis.questions.length > 0 && (
             <ul className="mt-5 list-disc space-y-1 pl-5 text-[15px] text-muted">

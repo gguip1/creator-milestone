@@ -176,7 +176,12 @@ async def _too_large(request: Request) -> Response | None:
         too_big = len(await request.body()) > MAX_BODY_BYTES
     if not too_big:
         return None
-    return error_response(request, 413, "PAYLOAD_TOO_LARGE", "That request is too large.")
+    return error_response(
+        request,
+        413,
+        "PAYLOAD_TOO_LARGE",
+        f"That request is too large. The limit is {MAX_BODY_BYTES // 1024} KB.",
+    )
 
 
 async def request_context(request: Request, call_next: RequestResponseEndpoint) -> Response:

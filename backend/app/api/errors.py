@@ -33,6 +33,33 @@ def error_response(
     return JSONResponse(body, status_code=status_code, headers=headers)
 
 
+FIELD_NAMES = {
+    "message": "The message",
+    "body": "The message",
+    "title": "The title",
+    "description": "The description",
+    "usage_rights": "Usage rights",
+    "client_email": "The client email",
+    "client_display_name": "The client name",
+    "note": "The note",
+    "subject": "The subject",
+    "evidence_url": "The link",
+}
+
+
+def _limit_message(errors: list[dict[str, Any]]) -> str | None:
+    """A sentence naming the real limit of the first over-length input. Never the input."""
+    for error in errors:
+        context = error.get("ctx") or {}
+        field = next((str(p) for p in reversed(error["loc"]) if not isinstance(p, int)), "")
+        name = FIELD_NAMES.get(field, "That field")
+        if error["type"] == "string_too_long" and "max_length" in context:
+            return f"{name} is too long. The limit is {context['max_length']:,} characters."
+        if error["type"] == "too_long" and "max_length" in context:
+            return f"{name} has too many entries. The limit is {context['max_length']:,}."
+    return None
+
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(request: Request, exc: AppError) -> JSONResponse:
@@ -45,12 +72,19 @@ def register_error_handlers(app: FastAPI) -> None:
             {"loc": [str(part) for part in e["loc"]], "message": e["msg"], "type": e["type"]}
             for e in exc.errors()
         ]
+        details: dict[str, Any] = {"errors": errors}
+        limit_message = _limit_message(exc.errors())
+        if limit_message:
+            limits = [
+                e["ctx"]["max_length"] for e in exc.errors() if "max_length" in (e.get("ctx") or {})
+            ]
+            details["max_length"] = limits[0]
         return error_response(
             request,
             422,
             "VALIDATION_ERROR",
-            "Some fields are missing or invalid.",
-            {"errors": errors},
+            limit_message or "Some fields are missing or invalid.",
+            details,
         )
 
     @app.exception_handler(StarletteHTTPException)

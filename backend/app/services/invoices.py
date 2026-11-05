@@ -380,6 +380,9 @@ def apply_remote_status(
             milestone=milestone.title,
             invoice_number=invoice.invoice_number,
             amount=to_paypal_value(invoice.amount_minor_units, invoice.currency_code),
+            # A demo shortcut reuses an invoice that was already paid; no new invoice was billed.
+            reused_paid_invoice=invoice.adopted,
+            paypal_invoice_id=invoice.paypal_invoice_id if invoice.adopted else None,
         )
 
     if describe_status(raw).settles_milestone and milestone.workflow_state == MilestoneState.BILLED:

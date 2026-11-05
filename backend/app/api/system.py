@@ -12,6 +12,7 @@ from app.api.deps import DbDep, PayPalDep, SettingsDep, ViewerDep, get_commissio
 from app.api.presenters import project_out
 from app.errors import AppError, conflict, invalid
 from app.models import Commission, RateCardItem
+from app.models.enums import CommissionStatus
 from app.schemas import api as schemas
 from app.services.demo_jump import run_jump
 from app.services.paypal_errors import PAYPAL_FAILURES
@@ -115,6 +116,34 @@ async def demo_session(db: DbDep, settings: SettingsDep, viewer: ViewerDep) -> s
         commission = seed_demo_project(db, visitor_id=viewer.id)
         db.commit()
     return _demo_start(db, commission, settings)
+
+
+@router.get("/demo/status", response_model=schemas.DemoStatusOut)
+async def demo_status(db: DbDep, viewer: ViewerDep) -> schemas.DemoStatusOut:
+    """Read-only: never seeds or wipes. Lets the landing page warn before Start over."""
+    query = select(Commission).order_by(Commission.created_at.desc()).limit(1)
+    query = query.where(
+        Commission.visitor_id.is_(None) if viewer.id is None else Commission.visitor_id == viewer.id
+    )
+    commission = db.scalar(query)
+    if commission is None:
+        return schemas.DemoStatusOut(has_project=False)
+    at_paypal = [i for i in commission.invoices if i.paypal_invoice_id]
+    paid = [i for i in at_paypal if i.paypal_status == "PAID"]
+    return schemas.DemoStatusOut(
+        has_project=True,
+        project_id=commission.id,
+        title=commission.title,
+        status=commission.status,
+        has_progress=bool(
+            at_paypal
+            or commission.title
+            or commission.messages
+            or commission.status != CommissionStatus.DRAFT
+        ),
+        invoices_at_paypal=len(at_paypal),
+        invoices_paid=len(paid),
+    )
 
 
 @router.get("/demo/info", response_model=schemas.DemoInfoOut)

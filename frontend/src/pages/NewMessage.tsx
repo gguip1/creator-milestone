@@ -3,7 +3,7 @@ import { ArrowRight, Copy, Shield, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { EvidenceTable, type EvidenceRow } from "../components/evidence";
-import { AppShell, Button, Chip, ErrorNote, Loading, PageTitle } from "../components/ui";
+import { AiProgress, AppShell, Button, CharCount, Chip, ErrorNote, Loading, PageTitle } from "../components/ui";
 import { api, type FollowUp } from "../lib/api";
 import { EXAMPLE_FOLLOW_UP } from "../lib/examples";
 import { copyText, useProject } from "../lib/hooks";
@@ -25,6 +25,16 @@ export function NewMessagePage() {
     onError: () => queryClient.invalidateQueries({ queryKey: ["project", id] }),
   });
 
+  const clientLang = project.data?.source_language || "en";
+  const langName = (() => {
+    try {
+      return new Intl.DisplayNames(["en"], { type: "language" }).of(clientLang) ?? clientLang;
+    } catch {
+      return clientLang;
+    }
+  })();
+  const showTranslation =
+    clientLang !== "ko" && result?.scope_guard.reply_draft_seller_translation.trim() !== result?.scope_guard.reply_draft_client.trim();
   const names = new Map(rateCard.data?.items.map((i) => [i.code, i.name]));
   const p = project.data;
   const rows: EvidenceRow[] =
@@ -57,18 +67,23 @@ export function NewMessagePage() {
         <textarea
           id="follow-up"
           rows={5}
-          maxLength={5000}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Paste the client's new message here."
           className="mt-3 w-full rounded-lg border border-line-strong bg-surface p-3 text-[17px] leading-relaxed"
         />
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Button pending={check.isPending} disabled={!message.trim()} icon={<Sparkles size={18} aria-hidden />} onClick={() => check.mutate()}>
+          <Button pending={check.isPending} disabled={!message.trim() || message.length > 5000} icon={<Sparkles size={18} aria-hidden />} onClick={() => check.mutate()}>
             Check against scope
           </Button>
           <Button variant="secondary" onClick={() => setMessage(EXAMPLE_FOLLOW_UP)}>Paste example</Button>
         </div>
+        <div className="mt-2"><CharCount length={message.length} limit={5000} /></div>
+        <AiProgress
+          active={check.isPending}
+          task="Checking the message against the agreed scope"
+          stages={["Reading the message", "Comparing each request with the agreed scope", "Pricing extras from your rate card and drafting the reply"]}
+        />
         <div className="mt-3"><ErrorNote error={check.error} /></div>
         <p className="mt-5 flex items-center gap-2 rounded-lg bg-paper-deep px-3 py-2.5 text-[14px] text-muted">
           <Shield size={15} aria-hidden className="shrink-0" /> Do not paste personal data. Demo messages may be read by the AI provider.
@@ -118,15 +133,17 @@ export function NewMessagePage() {
                 {copied ? "Copied" : "Copy reply"}
               </Button>
             </div>
-            <div className="mt-4 grid gap-6 min-[1000px]:grid-cols-2 min-[1000px]:divide-x min-[1000px]:divide-line">
-              <div>
-                <p className="text-[14px] font-semibold text-muted">English: goes to the client</p>
+            <div className={`mt-4 grid gap-6 ${showTranslation ? "min-[1000px]:grid-cols-2 min-[1000px]:divide-x min-[1000px]:divide-line" : ""}`}>
+              <div lang={clientLang}>
+                <p className="text-[14px] font-semibold text-muted">{langName}: goes to the client{showTranslation ? "" : " (same language as yours, so no translation is needed)"}</p>
                 <p className="mt-2 whitespace-pre-wrap leading-relaxed">{result.scope_guard.reply_draft_client}</p>
               </div>
-              <div lang="ko" className="min-[1000px]:pl-6">
-                <p className="text-[14px] font-semibold text-muted">한국어: Jiwoo's translation, not sent</p>
-                <p className="mt-2 whitespace-pre-wrap font-ko leading-[1.6]">{result.scope_guard.reply_draft_seller_translation}</p>
-              </div>
+              {showTranslation && (
+                <div lang="ko" className="min-[1000px]:pl-6">
+                  <p className="text-[14px] font-semibold text-muted">한국어: Jiwoo's translation, not sent</p>
+                  <p className="mt-2 whitespace-pre-wrap font-ko leading-[1.6]">{result.scope_guard.reply_draft_seller_translation}</p>
+                </div>
+              )}
             </div>
           </section>
         </>

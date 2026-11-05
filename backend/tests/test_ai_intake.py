@@ -446,3 +446,64 @@ async def test_no_cached_match_raises_unavailable():
     llm.set_provider(provider)
     with pytest.raises(LLMUnavailableError):
         await analyze_intake("A message that is not a demo message.", today=TODAY)
+
+
+KOREAN_MESSAGE = (
+    "안녕하세요. 캐릭터 전신 일러스트 한 장을 투명 PNG로 부탁드립니다. "
+    "예산은 미화 300달러이고 2026년 11월 25일까지 필요합니다. 수정은 두 번, 개인 용도입니다."
+)
+
+
+def korean_intake(**overrides):
+    fields = dict(
+        source_language="en",  # a wrong model label must not win over the script
+        title=raw_field("캐릭터 전신 일러스트", "explicit", "캐릭터 전신 일러스트"),
+        deliverables=[
+            raw_field("캐릭터 전신 일러스트 한 장", "explicit", "캐릭터 전신 일러스트 한 장")
+        ],
+        file_formats=[raw_field("투명 PNG", "explicit", "투명 PNG")],
+        deadline=raw_field("2026-11-25", "explicit", "2026년 11월 25일까지"),
+        revisions=raw_field("2", "explicit", "두 번"),
+        usage_rights=raw_field("개인 용도", "explicit", "개인 용도"),
+        budget=raw_field("USD 300", "explicit", "미화 300달러"),
+        sketch_review_requested=raw_field(),
+    )
+    return raw_intake(**{**fields, **overrides})
+
+
+async def test_korean_message_fills_explicit_terms_and_reports_korean():
+    provider = FakeProvider([korean_intake()], [unavailable() for _ in range(8)])
+    llm.set_provider(provider)
+    analysis = await analyze_intake(KOREAN_MESSAGE, today=TODAY)
+    assert analysis.source_language == "ko"
+    assert analysis.revisions.value == "2"
+    assert analysis.revisions.needs_confirmation is False
+    assert analysis.usage_rights.value == "개인 용도"
+    assert analysis.usage_rights.needs_confirmation is False
+    assert analysis.deadline.needs_confirmation is False
+    assert analysis.budget_minor_units == 30_000
+
+
+async def test_korean_number_words_become_digits():
+    """The model may copy the client's words into the value; the server normalizes the count."""
+    provider = FakeProvider(
+        [korean_intake(revisions=raw_field("두 번", "explicit", "두 번"))],
+        [unavailable() for _ in range(8)],
+    )
+    llm.set_provider(provider)
+    analysis = await analyze_intake(KOREAN_MESSAGE, today=TODAY)
+    assert analysis.revisions.value == "2"
+    assert analysis.revisions.provenance == "explicit"
+
+
+async def test_korean_hedged_revisions_stay_unconfirmed():
+    message = KOREAN_MESSAGE.replace("수정은 두 번,", "수정은 아마 두 번 정도,")
+    provider = FakeProvider(
+        [korean_intake(revisions=raw_field("2", "explicit", "두 번"))],
+        [unavailable() for _ in range(8)],
+    )
+    llm.set_provider(provider)
+    analysis = await analyze_intake(message, today=TODAY)
+    assert analysis.revisions.value == "2"
+    assert analysis.revisions.needs_confirmation is True
+    assert analysis.revisions.provenance == "inferred"

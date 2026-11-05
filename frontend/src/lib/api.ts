@@ -351,6 +351,16 @@ export type DemoReset = {
   example_messages: { intake: string; follow_up: string };
 };
 
+export type DemoStatus = {
+  has_project: boolean;
+  project_id: string | null;
+  title: string;
+  status: string | null;
+  has_progress: boolean;
+  invoices_at_paypal: number;
+  invoices_paid: number;
+};
+
 export type DemoInfo = {
   judge_mode: boolean;
   buyer_login: { email: string | null; password: string | null };
@@ -442,6 +452,7 @@ export const api = {
   health: () => get<Health>("/api/health"),
   demoReset: () => post<DemoReset>("/api/demo/reset"),
   demoSession: () => get<DemoReset>("/api/demo/session"),
+  demoStatus: () => get<DemoStatus>("/api/demo/status"),
   demoInfo: () => get<DemoInfo>("/api/demo/info"),
   demoJump: (projectId: string, target: "deposit_paid" | "sketch_shared") =>
     post<DemoJump>("/api/demo/jump", { project_id: projectId, target }),
