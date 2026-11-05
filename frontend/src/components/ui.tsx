@@ -18,9 +18,12 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { Link, NavLink } from "react-router";
+import { api } from "../lib/api";
 import type { IconName, Tone } from "../lib/status";
+import { useWaking } from "../lib/waking";
 
 const ICONS: Record<IconName, LucideIcon> = {
   circle: Circle,
@@ -119,15 +122,51 @@ export function Button({
   );
 }
 
+function BuyerLogin() {
+  const info = useQuery({ queryKey: ["demoInfo"], queryFn: api.demoInfo, staleTime: Infinity, retry: 2 });
+  if (!info.data?.judge_mode) return null;
+  const { email, password } = info.data.buyer_login;
+  return (
+    <p className="text-[14px] text-white/85">
+      Pay as the sandbox buyer:{" "}
+      {email && password ? (
+        <>
+          <span className="font-mono">{email}</span> / <span className="font-mono">{password}</span>
+        </>
+      ) : (
+        "the login is in the submission's testing instructions."
+      )}
+    </p>
+  );
+}
+
+function WakingNotice() {
+  if (!useWaking()) return null;
+  return (
+    <p role="status" className="border-b border-line bg-accent-soft px-4 py-2 text-center text-[15px] text-accent-deep">
+      <Loader2 size={15} className="mr-1.5 inline animate-spin" aria-hidden />
+      The free demo server was asleep and is waking up. This takes about a minute; it will continue by itself.
+    </p>
+  );
+}
+
 export function SandboxBanner({ notice = true }: { notice?: boolean }) {
   return (
-    <div className="bg-ink text-white">
-      <div className="mx-auto flex max-w-[1440px] items-center gap-3 px-4 py-2 text-[16px] sm:px-10">
-        <FlaskConical size={18} aria-hidden />
-        <span className="font-semibold">Sandbox only — no real money</span>
-        {notice && <span className="hidden text-white/80 sm:inline">PayPal sandbox test invoices</span>}
+    <>
+      <div className="bg-ink text-white">
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-4 gap-y-0.5 px-4 py-2 text-[16px] sm:px-10">
+          <span className="flex items-center gap-3">
+            <FlaskConical size={18} aria-hidden />
+            <span className="font-semibold">Sandbox only — no real money</span>
+          </span>
+          {notice && <span className="hidden text-white/80 lg:inline">PayPal sandbox test invoices</span>}
+          <span className="sm:ml-auto">
+            <BuyerLogin />
+          </span>
+        </div>
       </div>
-    </div>
+      <WakingNotice />
+    </>
   );
 }
 

@@ -37,6 +37,8 @@ class Seller(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     display_name: Mapped[str] = mapped_column(String(120))
+    # Judge Mode gives every visitor their own seller, so rate-card edits never cross visitors.
+    visitor_id: Mapped[str | None] = mapped_column(String(64), default=None, index=True)
     # Set when PayPal answers 403; PayPal writes stay blocked until a retry succeeds.
     billing_disabled_code: Mapped[str | None] = mapped_column(String(64), default=None)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
@@ -60,7 +62,7 @@ class Commission(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     seller_id: Mapped[str] = mapped_column(ForeignKey("seller.id"))
-    # Reserved for Judge Mode cookie scoping.
+    # Judge Mode cookie scoping. Null outside Judge Mode.
     visitor_id: Mapped[str | None] = mapped_column(String(64), default=None, index=True)
     share_token: Mapped[str] = mapped_column(String(64), unique=True, default=new_share_token)
     seller_display_name: Mapped[str] = mapped_column(String(120))
@@ -206,6 +208,14 @@ class Milestone(Base):
 class PaypalInvoice(Base):
     __tablename__ = "paypal_invoice"
     __table_args__ = (
+        # Judge Mode projects may each adopt the same prepaid sandbox invoice. Our own are unique.
+        Index(
+            "uq_paypal_invoice_id",
+            "paypal_invoice_id",
+            unique=True,
+            sqlite_where=text("adopted = 0"),
+            postgresql_where=text("NOT adopted"),
+        ),
         Index(
             "uq_active_invoice_per_milestone",
             "milestone_id",
@@ -223,7 +233,9 @@ class PaypalInvoice(Base):
     billed_scope_version: Mapped[int] = mapped_column(Integer)
     amount_minor_units: Mapped[int] = mapped_column(Integer)
     currency_code: Mapped[str] = mapped_column(String(3))
-    paypal_invoice_id: Mapped[str | None] = mapped_column(String(64), unique=True, default=None)
+    paypal_invoice_id: Mapped[str | None] = mapped_column(String(64), default=None)
+    # True for a previously paid sandbox invoice adopted by a Judge Mode shortcut (verified by GET).
+    adopted: Mapped[bool] = mapped_column(Boolean, default=False)
     # Stable per attempt: it is the duplicate guard for retried creates.
     invoice_number: Mapped[str] = mapped_column(String(32), unique=True)
     create_request_id: Mapped[str] = mapped_column(String(64), default=new_id)

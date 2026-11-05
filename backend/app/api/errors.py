@@ -27,7 +27,10 @@ def error_response(
     body: dict[str, Any] = {"code": code, "message": message, "request_id": request_id}
     if details:
         body["details"] = details
-    return JSONResponse(body, status_code=status_code, headers={"X-Request-Id": request_id})
+    headers = {"X-Request-Id": request_id}
+    if status_code == 429 and details and "retry_after_seconds" in details:
+        headers["Retry-After"] = str(details["retry_after_seconds"])
+    return JSONResponse(body, status_code=status_code, headers=headers)
 
 
 def register_error_handlers(app: FastAPI) -> None:

@@ -217,7 +217,8 @@ def _apply_to_scope(commission: Commission, change_order: ChangeOrder) -> None:
         elif code == COMMERCIAL_LICENSE_CODE:
             commission.usage_rights = f"{commission.usage_rights}; commercial license".strip("; ")
         else:
-            label = line.get("request_summary") or line["name"]
+            # The rate-card name, never the model's prose, becomes part of the agreed terms.
+            label = line["name"] if line["quantity"] == 1 else f"{line['name']} x{line['quantity']}"
             commission.deliverables_json = [*commission.deliverables_json, label]
 
 

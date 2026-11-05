@@ -23,6 +23,18 @@ services:
         value: "true"
       - key: RECIPIENT_ALLOWLIST
         sync: false
+      # Signs the visitor cookie. Optional: blank means a random secret per boot.
+      - key: SESSION_SECRET
+        sync: false
+      # Display-only sandbox buyer login for the banner. Leave unset to point judges at the
+      # submission's testing instructions.
+      - key: DEMO_BUYER_EMAIL
+        sync: false
+      - key: DEMO_BUYER_PASSWORD
+        sync: false
+      # A real, already paid sandbox invoice for "Jump to: deposit paid" (verified by a live GET).
+      - key: DEMO_PAID_INVOICE_ID
+        sync: false
       - key: LLM_PROVIDER
         value: gemini
       - key: LLM_MODEL

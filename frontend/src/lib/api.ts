@@ -1,3 +1,5 @@
+import { setWaking } from "./waking";
+
 // Hand-written to match backend/app/schemas/api.py and schemas/ai.py. Money is integer minor units.
 
 export type Health = {
@@ -113,6 +115,8 @@ export type Invoice = {
   reminders_sent: number;
   sent_at: string | null;
   paid_seen_at: string | null;
+  /** A previously paid sandbox invoice adopted by a demo shortcut, confirmed with PayPal. */
+  adopted: boolean;
 };
 
 export type MilestoneState =
@@ -328,6 +332,7 @@ export type ClientChangeOrder = {
   number: number;
   status: ChangeOrder["status"];
   lines: ChangeOrderLine[];
+  not_billed: { request_summary: string }[];
   total_minor_units: number;
   can_decide: boolean;
 };
@@ -345,6 +350,14 @@ export type DemoReset = {
   suggested_client_email: string | null;
   example_messages: { intake: string; follow_up: string };
 };
+
+export type DemoInfo = {
+  judge_mode: boolean;
+  buyer_login: { email: string | null; password: string | null };
+  paid_invoice_configured: boolean;
+};
+
+export type DemoJump = { applied: boolean; message: string; project: Project };
 
 export class ApiError extends Error {
   constructor(
@@ -368,33 +381,58 @@ export function newKey(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+const WAKE_STATUSES = new Set([502, 503, 504]);
+const WAKE_RETRY_MS = 4000;
+const WAKE_MAX_TRIES = 24; // About 95 s: a free instance needs about a minute to wake.
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
+  // One key for every retry of this action, so a request that did land is never repeated.
   if (method !== "GET" && !path.startsWith("/api/analyze") && !/\/invoices\/[^/]+\/refresh$/.test(path)) {
     headers["Idempotency-Key"] = newKey();
   }
-  let response: Response;
-  try {
-    response = await fetch(path, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  } catch {
-    throw new ApiError(0, "NETWORK", "Cannot reach the server. Check your connection and try again.");
+  for (let attempt = 1; ; attempt++) {
+    let response: Response | null = null;
+    try {
+      response = await fetch(path, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch {
+      /* unreachable: treated like a sleeping server below */
+    }
+    // A gateway answer without our JSON error body comes from the host, not from the app.
+    const hostAnswer =
+      response !== null && WAKE_STATUSES.has(response.status) && !response.headers.get("content-type")?.includes("json");
+    if (response === null || hostAnswer) {
+      if (attempt < WAKE_MAX_TRIES) {
+        setWaking(true);
+        await sleep(WAKE_RETRY_MS);
+        continue;
+      }
+      setWaking(false);
+      throw new ApiError(
+        0,
+        "WAKING",
+        "The demo server is still waking up. Give it another minute, then reload. Nothing was changed.",
+      );
+    }
+    setWaking(false);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new ApiError(
+        response.status,
+        data.code ?? "HTTP_ERROR",
+        data.message ?? response.statusText,
+        data.details,
+        data.request_id,
+      );
+    }
+    return response.json() as Promise<T>;
   }
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new ApiError(
-      response.status,
-      data.code ?? "HTTP_ERROR",
-      data.message ?? response.statusText,
-      data.details,
-      data.request_id,
-    );
-  }
-  return response.json() as Promise<T>;
 }
 
 const get = <T>(path: string) => request<T>("GET", path);
@@ -403,6 +441,10 @@ const post = <T>(path: string, body?: unknown) => request<T>("POST", path, body 
 export const api = {
   health: () => get<Health>("/api/health"),
   demoReset: () => post<DemoReset>("/api/demo/reset"),
+  demoSession: () => get<DemoReset>("/api/demo/session"),
+  demoInfo: () => get<DemoInfo>("/api/demo/info"),
+  demoJump: (projectId: string, target: "deposit_paid" | "sketch_shared") =>
+    post<DemoJump>("/api/demo/jump", { project_id: projectId, target }),
   analyze: (message: string) => post<IntakeAnalysis>("/api/analyze", { message }),
   project: (id: string) => get<Project>(`/api/projects/${id}`),
   projects: () => get<{ id: string; title: string; status: string }[]>("/api/projects"),
@@ -429,6 +471,7 @@ export const api = {
     },
   ) => request<Proposal>("PATCH", `/api/proposals/${id}`, body),
   refreshInvoice: (id: string) => post<Invoice>(`/api/invoices/${id}/refresh`),
+  cancelProject: (id: string) => post<Project>(`/api/projects/${id}/cancel`),
   cancelInvoice: (id: string) => post<Proposal>(`/api/invoices/${id}/cancel`),
   rateCard: () => get<RateCard>("/api/settings/rate-card"),
   putRateCard: (items: RateCardItem[]) => request<RateCard>("PUT", "/api/settings/rate-card", { items }),

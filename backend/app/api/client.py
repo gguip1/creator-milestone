@@ -14,6 +14,7 @@ from app.services.change_orders import client_approve, client_decline
 from app.services.invoice_sync import mark_viewed
 from app.services.milestones import approve_delivery
 from app.services.scope import accept_as_client
+from app.services.visitors import UNSCOPED
 
 router = APIRouter(prefix="/c")
 
@@ -48,7 +49,7 @@ async def approve_milestone(
     token: str, milestone_id: str, db: DbDep, settings: SettingsDep
 ) -> schemas.ClientViewOut:
     commission = _commission_for(db, token)
-    milestone = get_milestone(db, milestone_id)
+    milestone = get_milestone(db, milestone_id, UNSCOPED)
     if milestone.commission_id != commission.id:
         raise not_found("Milestone")
     approve_delivery(db, milestone)

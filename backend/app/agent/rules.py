@@ -273,6 +273,19 @@ def _live_proposal(commission: Commission, milestone: Milestone) -> Proposal | N
     )
 
 
+def _dismissed(commission: Commission, key_prefix: str) -> bool:
+    """The seller dismissed a card for this target at this scope version (and attempt).
+
+    Brought-back cards carry a random suffix on the same prefix, so any of them counts. Only the
+    seller's "Bring back the billing card" (a new suffix) or a new scope version reopens it.
+    """
+    return any(
+        p.status == ProposalStatus.DISMISSED
+        and (p.idempotency_key == key_prefix or p.idempotency_key.startswith(f"{key_prefix}:"))
+        for p in commission.proposals
+    )
+
+
 def _ensure_billing_proposals(db: Session, commission: Commission) -> None:
     for milestone in commission.milestones:
         invoice = active_invoice(milestone)
@@ -281,6 +294,10 @@ def _ensure_billing_proposals(db: Session, commission: Commission) -> None:
             and (invoice is None or not invoice.paypal_invoice_id)
             and milestone.amount_minor_units >= 1
             and _live_proposal(commission, milestone) is None
+            and not _dismissed(
+                commission,
+                f"bill:{milestone.id}:v{commission.scope_version}:a{next_attempt(milestone)}",
+            )
         ):
             propose_bill(db, commission, milestone)
 
@@ -302,7 +319,12 @@ def _propose_send(
 
 def _ensure_send_proposals(db: Session, commission: Commission) -> None:
     for invoice in commission.invoices:
-        if invoice.is_active and invoice.paypal_invoice_id and invoice.paypal_status == "DRAFT":
+        if (
+            invoice.is_active
+            and invoice.paypal_invoice_id
+            and invoice.paypal_status == "DRAFT"
+            and not _dismissed(commission, f"send:{invoice.id}:v{commission.scope_version}")
+        ):
             _propose_send(db, commission, invoice)
 
 

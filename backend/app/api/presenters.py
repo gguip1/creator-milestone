@@ -53,6 +53,7 @@ def invoice_out(invoice: PaypalInvoice) -> schemas.InvoiceOut:
         reminders_sent=invoice.reminders_sent,
         sent_at=invoice.sent_at,
         paid_seen_at=invoice.paid_seen_at,
+        adopted=invoice.adopted,
     )
 
 
@@ -233,6 +234,16 @@ def _client_milestone(milestone: Milestone) -> schemas.ClientMilestoneOut:
     )
 
 
+def _not_billed(change_order: ChangeOrder) -> list[schemas.ClientNotBilledOut]:
+    """Requests in the same message that cost nothing. Only the summary leaves the seller side."""
+    items = (change_order.message.analysis_json or {}).get("items", [])
+    return [
+        schemas.ClientNotBilledOut(request_summary=item["request_summary"])
+        for item in items
+        if not item.get("billable") and item.get("request_summary")
+    ]
+
+
 def client_view(commission: Commission) -> schemas.ClientViewOut:
     version = commission.scope_version
     client_accepted = commission.client_accepted_version == version
@@ -253,6 +264,7 @@ def client_view(commission: Commission) -> schemas.ClientViewOut:
                 number=co.number,
                 status=co.status,
                 lines=_lines_out(co),
+                not_billed=_not_billed(co),
                 total_minor_units=co.total_minor_units,
                 can_decide=co.status == ChangeOrderStatus.SELLER_APPROVED,
             )

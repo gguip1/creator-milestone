@@ -247,10 +247,10 @@ async def test_sum_mismatch_is_blocked(api, fake_paypal, make_agreed, session_fa
 
 
 async def test_judge_mode_enforces_the_allowlist(api, fake_paypal, make_agreed, settings):
+    settings.judge_mode = True
     project = await make_agreed()
     bill = pending(project, "BILL_MILESTONE")
 
-    settings.judge_mode = True
     settings.recipient_allowlist = ["other@example.com"]
     error = await api.post(f"/api/proposals/{bill['id']}/approve", expect=422)
     assert "RECIPIENT_NOT_ALLOWED" in {b["code"] for b in error["details"]["blockers"]}
@@ -264,8 +264,8 @@ async def test_judge_mode_enforces_the_allowlist(api, fake_paypal, make_agreed, 
 async def test_judge_mode_with_an_empty_allowlist_fails_closed(
     api, fake_paypal, make_agreed, settings
 ):
-    project = await make_agreed()
     settings.judge_mode = True
+    project = await make_agreed()
     settings.recipient_allowlist = []
     bill = pending(project, "BILL_MILESTONE")
     await api.post(f"/api/proposals/{bill['id']}/approve", expect=422)
@@ -365,3 +365,35 @@ async def test_propose_bill_refuses_a_milestone_that_is_not_ready(api, make_agre
         f"/api/milestones/{project['milestones'][1]['id']}/propose-bill", expect=409
     )
     assert error["code"] == "MILESTONE_NOT_READY"
+
+
+async def test_dismissed_cards_are_not_proposed_again_by_later_reconciles(
+    api, fake_paypal, make_agreed
+):
+    project = await make_agreed()
+    milestone_id = project["milestones"][0]["id"]
+    await api.post(f"/api/proposals/{pending(project, 'BILL_MILESTONE')['id']}/dismiss")
+
+    # Bring it back, dismiss it again, then let several unrelated events reconcile.
+    again = await api.post(f"/api/milestones/{milestone_id}/propose-bill", expect=201)
+    await api.post(f"/api/proposals/{again['id']}/dismiss")
+    for _ in range(3):
+        project = await api.post(f"/api/projects/{project['id']}/revisions")
+    project = await api.get(f"/api/projects/{project['id']}")
+    created = [a for a in project["activity"] if a["action"] == "proposal_created"]
+    assert len(created) == 2  # The first card and the one the seller asked for. No others.
+    assert all(p["status"] == "DISMISSED" for p in project["proposals"])
+
+
+async def test_dismissed_send_card_stays_dismissed_until_brought_back(
+    api, fake_paypal, make_agreed
+):
+    project = await make_agreed()
+    await api.post(f"/api/proposals/{pending(project, 'BILL_MILESTONE')['id']}/approve")
+    project = await api.get(f"/api/projects/{project['id']}")
+    await api.post(f"/api/proposals/{pending(project, 'SEND_INVOICE')['id']}/dismiss")
+    for _ in range(3):
+        await api.post(f"/api/projects/{project['id']}/revisions")
+    project = await api.get(f"/api/projects/{project['id']}")
+    sends = [p for p in project["proposals"] if p["kind"] == "SEND_INVOICE"]
+    assert [p["status"] for p in sends] == ["DISMISSED"]

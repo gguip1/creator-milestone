@@ -673,3 +673,17 @@ async def guard_scope(
             raise
         return _result_from_cache(payload, scope=scope, rate_card=rate_card)
     return run.result
+
+
+def cached_scope_guard(
+    message: str,
+    *,
+    scope: ScopeContext,
+    rate_card: list[RateCardEntry],
+    today: date,
+) -> ScopeGuardResult:
+    """The recorded result for the demo message with no model call. Used when a spend cap is hit."""
+    payload = load_cached_scope_guard(message)
+    if payload is None:
+        raise LLMUnavailableError("No recorded analysis for this message.")
+    return _result_from_cache(payload, scope=scope, rate_card=rate_card)

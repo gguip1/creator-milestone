@@ -72,6 +72,10 @@ export function describeActivity(a: Activity): string {
       return `Status read from PayPal: ${paypalStatus(str(d.status)).label}, ${str(d.invoice_number)}.`;
     case "invoice_reminder_sent":
       return `Reminder sent for ${str(d.invoice_number)}.`;
+    case "demo_jump_agreed":
+      return "Demo shortcut: filled the sample terms and recorded both acceptances.";
+    case "demo_paid_invoice_adopted":
+      return `Demo shortcut: adopted a previously paid sandbox invoice (${str(d.paypal_invoice_id)}) after PayPal confirmed it as paid.`;
     case "commission_cancelled":
       return "Commission cancelled.";
     case "commission_completed":
