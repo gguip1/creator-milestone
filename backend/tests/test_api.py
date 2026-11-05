@@ -352,11 +352,14 @@ async def test_analyze_caps_input_length(api):
     await api.post("/api/analyze", {"message": "x" * 5001}, expect=422)
 
 
-async def test_real_ai_stubs_surface_as_503_not_500(api):
-    """Without test fakes, the unmerged AI functions raise NotImplementedError."""
-    from app.api.deps import analyze_intake, get_intake_analyzer
+async def test_unavailable_ai_surfaces_as_503_not_500(api):
+    from app.api.deps import get_intake_analyzer
+    from app.schemas.ai import LLMUnavailableError
 
-    app.dependency_overrides[get_intake_analyzer] = lambda: analyze_intake
+    async def unavailable(message, *, today):
+        raise LLMUnavailableError("every model failed")
+
+    app.dependency_overrides[get_intake_analyzer] = lambda: unavailable
     await api.post("/api/analyze", {"message": "hi"}, expect=503)
 
 
