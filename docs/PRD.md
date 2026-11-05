@@ -471,7 +471,7 @@ Priority: judges may score on the text, images, and video alone, so those must s
 
 ### 15.2 README structure
 1. Pitch sentence + hero GIF (Scope Guard → change-order invoice).
-2. **Try it in 60 seconds**: URL, Judge Mode, sandbox buyer login, what you'll see.
+2. **Try it in 60 seconds**: URL, Judge Mode, where to find the sandbox buyer login (the submission's testing instructions), what you'll see.
 3. Problem (3 lines) → what the agent does (Agree → Bill → Guard).
 4. How PayPal is used / how AI is used / **why AI never touches money directly**.
 5. Architecture (agent loop).
@@ -485,6 +485,7 @@ Priority: judges may score on the text, images, and video alone, so those must s
 - **Try the demo** creates a fresh seeded project per visitor (cookie-scoped) with Jiwoo's rate card.
 - Message 1 and message 2 are available as one-click "Paste example" buttons.
 - Recipient preset to our sandbox buyer; allowlist enforced; sandbox banner always visible.
+- **Decision 2026-11-06:** the sandbox buyer login goes only in the Devpost testing instructions, never in the app, README, or repo. The banner points judges there. `DEMO_BUYER_PASSWORD` stays unset on Render.
 - **Skip ahead** buttons: "Jump to: deposit paid" and "Jump to: sketch shared". These replay real API steps quickly; they do not fake PayPal state. Paid status must come from a real sandbox payment. If a prepaid seed is used, show its real invoice ID from earlier sandbox runs.
 - Rate limits on analyze, messages, and approvals; cap invoices per visitor per hour.
 
