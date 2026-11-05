@@ -97,7 +97,7 @@ function Summary({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-type Next = { title: string; why: string; to?: string; external?: boolean; anchor?: string; cta?: string };
+type Next = { title: string; why: string; to?: string; external?: boolean; anchor?: string; cta?: string; logRevision?: boolean };
 
 /** What the seller should do now, read from the project's real state. */
 function nextFor(project: Project): Next {
@@ -125,6 +125,13 @@ function nextFor(project: Project): Next {
   if (toDeliver)
     return { title: `Share “${toDeliver.title}” with the client`, why: "Log it as shared, with a link and a note. The client then approves it and the agent proposes the invoice.", anchor: "#milestones-h", cta: "Go to the milestone" };
   const delivered = project.milestones.find((m) => m.workflow_state === "DELIVERED");
+  const revisionsLeft = (project.revisions_included ?? 0) - project.revisions_used;
+  if (delivered && revisionsLeft > 0 && project.change_orders.length === 0 && /sketch/i.test(delivered.title))
+    return {
+      title: "Log the revisions used in the sketch round",
+      why: `${project.revisions_used} of ${project.revisions_included} revisions are logged. In the demo the client used both during the sketch round; log ${revisionsLeft} more (one click each) so Scope Guard bills a later revision request as an extra.`,
+      logRevision: true,
+    };
   if (delivered)
     return { title: `Wait for the client to approve “${delivered.title}”`, why: "The agent proposes the invoice as soon as they approve it on their page.", to: project.client_path, external: true, cta: "Open the client page" };
   if (awaitingPayment(project))
@@ -137,9 +144,16 @@ function nextFor(project: Project): Next {
 
 function NextStepCallout({ project }: { project: Project }) {
   const n = nextFor(project);
+  const logRevision = useProjectMutation(project.id, () => api.logRevision(project.id));
   const cls = "inline-flex items-center gap-2 rounded-md border border-accent bg-accent px-5 py-2.5 font-medium text-on-accent hover:bg-accent-deep";
   return (
     <NextCallout title={n.title} why={n.why} className="mt-6 mb-0">
+      {n.logRevision && (
+        <Button pending={logRevision.isPending} onClick={() => logRevision.mutate()}>
+          Log a revision ({project.revisions_used} of {project.revisions_included} used)
+        </Button>
+      )}
+      {n.logRevision && <ErrorNote error={logRevision.error} />}
       {n.cta && n.anchor && <a href={n.anchor} className={cls}>{n.cta}</a>}
       {n.cta && n.to && n.external && (
         <a href={n.to} target="_blank" rel="noreferrer" className={cls}>{n.cta} <ExternalLink size={16} aria-hidden /></a>

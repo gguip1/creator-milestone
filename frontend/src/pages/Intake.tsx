@@ -115,10 +115,14 @@ function suggestedEmail(): string {
   }
 }
 
+/** Extracted text starts mid-sentence; only the first letter is raised. Anything the seller types is never touched. */
+const capitalize = (text: string): string => (text ? text[0].toUpperCase() + text.slice(1) : text);
+const EXAMPLE_TITLE = "Full-body illustration for VTuber debut";
+
 function formFromAnalysis(a: IntakeAnalysis, project: Project): Form {
   const deadline = a.deadline.value && /^\d{4}-\d{2}-\d{2}$/.test(a.deadline.value) ? a.deadline.value : "";
   return {
-    title: a.title.value ?? project.title,
+    title: capitalize(a.title.value ?? project.title),
     deliverables: a.deliverables.map((d) => d.value).filter(Boolean).join("; "),
     fileFormats: a.file_formats.map((d) => d.value).filter(Boolean).join(", "),
     deadline,
@@ -429,9 +433,17 @@ function IntakeView({ project }: { project: Project }) {
             <ExampleRow
               className="mt-5"
               button="Fill example values"
-              onUse={() => setForm((f) => ({ ...f, revisions: f.revisions.trim() || "2", usage: f.usage.trim() || "Personal streaming" }))}
+              onUse={() =>
+                setForm((f) => ({
+                  ...f,
+                  // Only the untouched extracted title is replaced; a title the seller edited stays.
+                  title: analysis && f.title === capitalize(analysis.title.value ?? "") ? EXAMPLE_TITLE : f.title,
+                  revisions: f.revisions.trim() || "2",
+                  usage: f.usage.trim() || "Personal streaming",
+                }))
+              }
             >
-              For the open terms: revisions 2, usage Personal streaming. Use them only if you agree; you still accept the scope yourself.
+              For the open terms: revisions 2, usage Personal streaming, and a cleaner title if you have not edited it. Use them only if you agree; you still accept the scope yourself.
             </ExampleRow>
           )}
         </section>
