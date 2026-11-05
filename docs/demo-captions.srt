@@ -1,0 +1,92 @@
+1
+00:00:00,000 --> 00:00:05,143
+Jiwoo is an illustrator in Seoul. Her client is a VTuber abroad.
+
+2
+00:00:05,493 --> 00:00:11,921
+Requests arrive vague, extra work creeps in for free, and chasing each payment is awkward.
+
+3
+00:00:12,271 --> 00:00:15,700
+Each of those costs her money or time.
+
+4
+00:00:16,050 --> 00:00:20,336
+CreatorMilestone is an AI back office for artists like her.
+
+5
+00:00:20,686 --> 00:00:25,400
+The rule is simple: the AI proposes, Jiwoo approves, PayPal executes.
+
+6
+00:00:25,750 --> 00:00:30,036
+This is the PayPal sandbox, so no real money moves.
+
+7
+00:00:30,386 --> 00:00:40,671
+She pastes the client's message. Every field shows where it came from. The agent lists every term with the exact words it relied on.
+
+8
+00:00:41,021 --> 00:00:48,307
+Revisions are flagged, because the client only said maybe. Usage rights and the client's email are unknown.
+
+9
+00:00:48,657 --> 00:00:53,800
+It drafts a reply in English, with a Korean translation for her.
+
+10
+00:00:54,150 --> 00:01:02,293
+She fills the gaps and accepts. The client accepts on their phone. Now both sides share the same terms.
+
+11
+00:01:02,643 --> 00:01:09,929
+The agent proposes the deposit invoice. The amount comes from the milestone plan, never from the model.
+
+12
+00:01:10,279 --> 00:01:17,993
+Jiwoo approves, and the backend creates a PayPal invoice with the agreed terms inside it, then sends it.
+
+13
+00:01:18,343 --> 00:01:26,057
+The sandbox buyer pays, and PayPal reports the invoice paid. Only then does the app settle the milestone.
+
+14
+00:01:26,407 --> 00:01:33,693
+To save time here, a shortcut reuses an invoice paid earlier, and the app still asks PayPal.
+
+15
+00:01:34,043 --> 00:01:41,329
+Then the client asks for more: a second outfit, one more face revision, and maybe merch use.
+
+16
+00:01:41,679 --> 00:01:54,107
+Scope Guard checks the agreement. The outfit is out of scope. The face edit exceeds the two included revisions. Merch is only a question, so it is not billed.
+
+17
+00:01:54,457 --> 00:02:01,743
+Extras are priced from Jiwoo's rate card, a hundred dollars total. The AI never sets a price.
+
+18
+00:02:02,093 --> 00:02:08,093
+Jiwoo approves, and the client approves on their page. That creates scope version two.
+
+19
+00:02:08,443 --> 00:02:16,157
+The agent proposes a second invoice, one line per extra. Jiwoo approves, and it goes out through PayPal.
+
+20
+00:02:16,507 --> 00:02:24,650
+Gemini reads and drafts. Rules compute the money. A validator checks every PayPal write, and 466 automated tests pass.
+
+21
+00:02:25,000 --> 00:02:28,429
+Sandbox only, messages are pasted, one seller account.
+
+22
+00:02:28,779 --> 00:02:34,779
+Every claim here is in the repository, with a log of real sandbox calls.
+
+23
+00:02:35,129 --> 00:02:38,986
+CreatorMilestone: get paid for the work you agreed to.
+
