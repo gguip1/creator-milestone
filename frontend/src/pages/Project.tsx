@@ -38,7 +38,7 @@ export function ProjectPage() {
 }
 
 /** The free host restarts and forgets demo data; Judge Mode seeds a new project on demand. */
-function MissingProject() {
+export function MissingProject() {
   const navigate = useNavigate();
   const session = useMutation({
     mutationFn: api.demoSession,
@@ -163,7 +163,7 @@ function ProjectView({ project }: { project: Project }) {
         <Summary label="Deadline">{formatDate(project.deadline_date)}</Summary>
         <Summary label="Client">
           {project.client_display_name || "Client"}
-          {project.source_language && `, ${project.source_language === "en" ? "English" : project.source_language}`}
+          {project.source_language && `, ${new Intl.DisplayNames(["en"], { type: "language" }).of(project.source_language) ?? project.source_language}`}
         </Summary>
       </dl>
       <div className="mt-5 grid gap-x-10 gap-y-10 min-[1100px]:grid-cols-[minmax(0,500px)_minmax(0,1fr)]">

@@ -48,7 +48,7 @@ FIELD_NAMES = {
 
 
 def _limit_message(errors: list[dict[str, Any]]) -> str | None:
-    """A specific sentence for the first over-length input, naming the real limit. Never the input."""
+    """A sentence naming the real limit of the first over-length input. Never the input."""
     for error in errors:
         context = error.get("ctx") or {}
         field = next((str(p) for p in reversed(error["loc"]) if not isinstance(p, int)), "")

@@ -3,11 +3,12 @@ import { Check, Copy, Languages, Lock, Shield, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Marker, ProvChip, provKind, provMark, type ProvKind } from "../components/provenance";
-import { AppShell, Button, Chip, cx, ErrorNote, Loading, Mono, PageTitle } from "../components/ui";
+import { AiProgress, AppShell, Button, CharCount, Chip, cx, ErrorNote, Loading, Mono, PageTitle } from "../components/ui";
 import { api, ApiError, type ExtractedField, type IntakeAnalysis, type MilestonePlanEntry, type Project } from "../lib/api";
 import { EXAMPLE_INTAKE } from "../lib/examples";
 import { formatDate, formatMoney, moneyInput, parseMoney } from "../lib/format";
 import { copyText, useProject } from "../lib/hooks";
+import { MissingProject } from "./Project";
 
 /** English name of an ISO 639-1 label from the analysis, never assumed to be English. */
 function languageName(code: string): string {
@@ -22,6 +23,8 @@ function languageName(code: string): string {
 function firmValue(field: ExtractedField): string | null {
   return field.value && field.provenance === "explicit" && !field.needs_confirmation ? field.value : null;
 }
+
+const MAX_MESSAGE = 5000; // Same limit as the server; the server answers with it if this drifts.
 
 type Row = { key: string; label: string; field?: ExtractedField; text: string; note?: string; kind: ProvKind };
 
@@ -155,7 +158,11 @@ export function IntakePage() {
   return (
     <AppShell projectId={id}>
       {query.isPending && <Loading label="Loading project…" />}
-      {query.isError && <ErrorNote error={query.error} />}
+      {query.isError && query.error instanceof ApiError && query.error.status === 404 ? (
+        <MissingProject />
+      ) : (
+        query.isError && <ErrorNote error={query.error} />
+      )}
       {query.data && <IntakeView project={query.data} />}
     </AppShell>
   );
@@ -286,7 +293,6 @@ function IntakeView({ project }: { project: Project }) {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={9}
-                maxLength={5000}
                 placeholder="Paste the client's first message here."
                 className="mt-4 w-full rounded-lg border border-line-strong bg-surface p-3 text-[17px] leading-relaxed"
               />
@@ -299,13 +305,19 @@ function IntakeView({ project }: { project: Project }) {
               </Button>
             ) : (
               <>
-                <Button pending={analyze.isPending} disabled={!message.trim()} icon={<Sparkles size={18} aria-hidden />} onClick={() => analyze.mutate()}>
+                <Button pending={analyze.isPending} disabled={!message.trim() || message.length > MAX_MESSAGE} icon={<Sparkles size={18} aria-hidden />} onClick={() => analyze.mutate()}>
                   Analyze
                 </Button>
                 <Button variant="secondary" onClick={() => setMessage(EXAMPLE_INTAKE)}>Paste example</Button>
               </>
             )}
           </div>
+          {!analysis && <div className="mt-2"><CharCount length={message.length} limit={MAX_MESSAGE} /></div>}
+          <AiProgress
+            active={analyze.isPending}
+            task="Analyzing the client's message"
+            stages={["Reading the message", "Checking evidence for each term", "Drafting the clarifying reply"]}
+          />
           {analyzeError && (
             <div className="mt-3 space-y-2">
               <ErrorNote error={analyzeError} />

@@ -19,9 +19,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { Link, NavLink } from "react-router";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { formatMoney } from "../lib/format";
 import type { IconName, Tone } from "../lib/status";
 import { useWaking } from "../lib/waking";
@@ -248,13 +249,89 @@ export function Mono({ children, className }: { children: ReactNode; className?:
   return <span className={cx("font-mono font-medium", className)}>{children}</span>;
 }
 
+function retryHint(seconds: number): string {
+  if (seconds < 90) return `about ${Math.max(5, Math.round(seconds / 5) * 5)} seconds`;
+  if (seconds < 5400) return `about ${Math.round(seconds / 60)} minutes`;
+  return `about ${Math.round(seconds / 3600)} hours`;
+}
+
+/** What the person should read for a failed call: the real limit, wait time, or service state. */
+export function describeError(error: unknown): string {
+  if (!(error instanceof ApiError)) {
+    return error instanceof Error ? error.message : "Something went wrong. Try again.";
+  }
+  const wait = Number(error.details?.retry_after_seconds);
+  if (error.status === 429) {
+    return `${error.message} This is a demo rate limit, not a failure. Nothing was changed${wait > 0 ? `; try again in ${retryHint(wait)}` : ""}.`;
+  }
+  if (error.code === "LLM_UNAVAILABLE" || (error.status === 503 && /AI service/i.test(error.message))) {
+    return "The AI service is busy or unavailable right now. Nothing was changed. Wait a minute and try again.";
+  }
+  return error.message;
+}
+
 export function ErrorNote({ error }: { error: unknown }) {
   if (!error) return null;
-  const message = error instanceof Error ? error.message : "Something went wrong. Try again.";
   return (
     <p role="alert" className="flex items-start gap-2 text-[14px] font-semibold text-danger">
-      <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden /> {message}
+      <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden /> {describeError(error)}
     </p>
+  );
+}
+
+/** Live length against the server's limit. Shown instead of silently cutting pasted text. */
+export function CharCount({ length, limit }: { length: number; limit: number }) {
+  const over = length > limit;
+  return (
+    <p className={cx("text-[14px]", over ? "font-semibold text-danger" : "text-muted")} role={over ? "alert" : undefined}>
+      {over
+        ? `Too long: ${length.toLocaleString()} of ${limit.toLocaleString()} characters. Shorten it by ${(length - limit).toLocaleString()}.`
+        : `${length.toLocaleString()} of ${limit.toLocaleString()} characters`}
+    </p>
+  );
+}
+
+/**
+ * Staged progress for a slow AI call. Stages follow what the server does in order; they are
+ * not a measured percentage, so none is shown.
+ */
+export function AiProgress({ active, stages, task }: { active: boolean; stages: string[]; task: string }) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      setSeconds(0);
+      return;
+    }
+    const timer = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(timer);
+  }, [active]);
+  if (!active) return null;
+  // Move on every 6 s, and stay on the last stage rather than pretend to finish.
+  const current = Math.min(stages.length - 1, Math.floor(seconds / 6));
+  return (
+    <div role="status" aria-live="polite" className="mt-3 rounded-[10px] border border-line bg-paper-deep p-4 text-[15px]">
+      <p className="font-semibold">{task}</p>
+      <ol className="mt-2 space-y-1">
+        {stages.map((stage, i) => (
+          <li key={stage} className={cx("flex items-center gap-2", i > current && "text-muted")}>
+            {i < current ? (
+              <Check size={15} className="text-success" aria-hidden />
+            ) : i === current ? (
+              <Loader2 size={15} className="animate-spin text-accent" aria-hidden />
+            ) : (
+              <span aria-hidden className="size-[15px] rounded-full border border-line-strong" />
+            )}
+            {stage}
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-muted">
+        {seconds >= 12
+          ? "The AI service is taking longer than usual. This can take up to a minute. Nothing has been saved yet."
+          : "If the AI service is busy this can take up to a minute."}{" "}
+        <span className="font-mono">{seconds}s</span>
+      </p>
+    </div>
   );
 }
 
