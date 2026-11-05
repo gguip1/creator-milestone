@@ -44,7 +44,7 @@ export function SettingsPage() {
       <div className="grid gap-6 min-[1000px]:grid-cols-[3fr_2fr]">
         <section aria-labelledby="rate-h" className="rounded-lg border border-line p-6 sm:p-8">
           <h2 id="rate-h" className="eyebrow">Rate card</h2>
-          <p className="mt-3 text-[15px] text-muted">Scope Guard prices every extra from this list. The AI never sets a price.</p>
+          <p className="mt-3 text-[15px] text-muted">Scope Guard prices every extra from this list. Code calculates the amounts; the AI only picks the item and quantity, and you review them.</p>
           {card.isPending && <Loading />}
           <ul className="mt-4 divide-y divide-line border-y border-line">
             {rows.map((r, i) => (

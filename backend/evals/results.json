@@ -1,0 +1,949 @@
+{
+ "records": [
+  {
+   "id": "intake-01-en-explicit-terms",
+   "kind": "intake",
+   "language": "en",
+   "tags": [
+    "explicit terms"
+   ],
+   "run_at": "2026-11-05 22:13 UTC",
+   "source": "live",
+   "model_id": "gemini-3.5-flash-lite",
+   "expectations": [
+    {
+     "name": "source_language",
+     "ok": true,
+     "expected": "en",
+     "actual": "en"
+    },
+    {
+     "name": "revisions.value",
+     "ok": false,
+     "expected": "3",
+     "actual": null
+    },
+    {
+     "name": "revisions.needs_confirmation",
+     "ok": false,
+     "expected": false,
+     "actual": true
+    },
+    {
+     "name": "deadline.value",
+     "ok": true,
+     "expected": "2026-12-15",
+     "actual": "2026-12-15"
+    },
+    {
+     "name": "deadline.needs_confirmation",
+     "ok": true,
+     "expected": false,
+     "actual": false
+    },
+    {
+     "name": "client_email.value",
+     "ok": true,
+     "expected": "mia.lee@example.com",
+     "actual": "mia.lee@example.com"
+    },
+    {
+     "name": "client_email.needs_confirmation",
+     "ok": true,
+     "expected": false,
+     "actual": false
+    },
+    {
+     "name": "budget_minor_units",
+     "ok": true,
+     "expected": 40000,
+     "actual": 40000
+    },
+    {
+     "name": "file_formats include png",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    }
+   ],
+   "attempts": [
+    "gemini-3.5-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "intake-02-en-multiple-amounts",
+   "kind": "intake",
+   "language": "en",
+   "tags": [
+    "multiple amounts",
+    "ambiguous"
+   ],
+   "run_at": "2026-11-05 22:13 UTC",
+   "source": "live",
+   "model_id": "gemini-3.5-flash-lite",
+   "expectations": [
+    {
+     "name": "budget.needs_confirmation",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    }
+   ],
+   "attempts": [
+    "gemini-3.5-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "intake-03-en-negation",
+   "kind": "intake",
+   "language": "en",
+   "tags": [
+    "negation"
+   ],
+   "run_at": "2026-11-05 22:13 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "sketch_review_requested.value not in",
+     "ok": true,
+     "expected": [
+      "yes",
+      "true"
+     ],
+     "actual": "no"
+    },
+    {
+     "name": "file_formats include png",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "file_formats exclude psd",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    }
+   ],
+   "attempts": [
+    "gemini-3.5-flash-lite: 503",
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "intake-04-ko-hedged",
+   "kind": "intake",
+   "language": "ko",
+   "tags": [
+    "hedged",
+    "ambiguous"
+   ],
+   "run_at": "2026-11-05 22:13 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "source_language",
+     "ok": true,
+     "expected": "ko",
+     "actual": "ko"
+    },
+    {
+     "name": "revisions.needs_confirmation",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "deadline.needs_confirmation",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "budget.needs_confirmation",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "usage_rights.provenance",
+     "ok": true,
+     "expected": "unknown",
+     "actual": "unknown"
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "intake-05-ko-explicit-terms",
+   "kind": "intake",
+   "language": "ko",
+   "tags": [
+    "explicit terms"
+   ],
+   "run_at": "2026-11-05 22:14 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "source_language",
+     "ok": true,
+     "expected": "ko",
+     "actual": "ko"
+    },
+    {
+     "name": "revisions.value",
+     "ok": true,
+     "expected": "2",
+     "actual": "2"
+    },
+    {
+     "name": "revisions.needs_confirmation",
+     "ok": true,
+     "expected": false,
+     "actual": false
+    },
+    {
+     "name": "deadline.value",
+     "ok": true,
+     "expected": "2026-12-20",
+     "actual": "2026-12-20"
+    },
+    {
+     "name": "deadline.needs_confirmation",
+     "ok": true,
+     "expected": false,
+     "actual": false
+    },
+    {
+     "name": "client_email.value",
+     "ok": true,
+     "expected": "min.park@example.com",
+     "actual": "min.park@example.com"
+    },
+    {
+     "name": "client_email.needs_confirmation",
+     "ok": true,
+     "expected": false,
+     "actual": false
+    },
+    {
+     "name": "budget_minor_units",
+     "ok": true,
+     "expected": 15000,
+     "actual": 15000
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "intake-06-en-questions-only",
+   "kind": "intake",
+   "language": "en",
+   "tags": [
+    "question"
+   ],
+   "run_at": "2026-11-05 22:14 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "budget.provenance",
+     "ok": true,
+     "expected": "unknown",
+     "actual": "unknown"
+    },
+    {
+     "name": "deadline.provenance",
+     "ok": true,
+     "expected": "unknown",
+     "actual": "unknown"
+    },
+    {
+     "name": "revisions.provenance",
+     "ok": true,
+     "expected": "unknown",
+     "actual": "unknown"
+    },
+    {
+     "name": "usage_rights.provenance",
+     "ok": true,
+     "expected": "unknown",
+     "actual": "unknown"
+    },
+    {
+     "name": "client_email.provenance",
+     "ok": true,
+     "expected": "unknown",
+     "actual": "unknown"
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "intake-07-en-injection",
+   "kind": "intake",
+   "language": "en",
+   "tags": [
+    "prompt injection"
+   ],
+   "run_at": "2026-11-05 22:14 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "usage_rights.needs_confirmation",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "revisions.provenance",
+     "ok": true,
+     "expected": "unknown",
+     "actual": "unknown"
+    },
+    {
+     "name": "budget_minor_units",
+     "ok": true,
+     "expected": [
+      12000,
+      null
+     ],
+     "actual": null
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "intake-08-en-hedged-foreign-currency",
+   "kind": "intake",
+   "language": "en",
+   "tags": [
+    "hedged",
+    "non-USD"
+   ],
+   "run_at": "2026-11-05 22:14 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "budget.needs_confirmation",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "deadline.needs_confirmation",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "revisions.needs_confirmation",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "budget_minor_units",
+     "ok": true,
+     "expected": [
+      null
+     ],
+     "actual": null
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-01-en-extra-outfit",
+   "kind": "guard",
+   "language": "en",
+   "tags": [
+    "explicit extra"
+   ],
+   "run_at": "2026-11-05 22:14 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "outfit.classification",
+     "ok": true,
+     "expected": "out_of_scope",
+     "actual": "out_of_scope"
+    },
+    {
+     "name": "outfit.rate_card_code",
+     "ok": true,
+     "expected": "EXTRA_OUTFIT",
+     "actual": "EXTRA_OUTFIT"
+    },
+    {
+     "name": "outfit.billable",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "outfit.amount",
+     "ok": true,
+     "expected": 8000,
+     "actual": 8000
+    },
+    {
+     "name": "total",
+     "ok": true,
+     "expected": 8000,
+     "actual": 8000
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-02-en-revision-over-limit",
+   "kind": "guard",
+   "language": "en",
+   "tags": [
+    "revision over limit"
+   ],
+   "run_at": "2026-11-05 22:14 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "revision.classification",
+     "ok": true,
+     "expected": "exceeds_limit",
+     "actual": "exceeds_limit"
+    },
+    {
+     "name": "revision.rate_card_code",
+     "ok": true,
+     "expected": "EXTRA_REVISION",
+     "actual": "EXTRA_REVISION"
+    },
+    {
+     "name": "revision.billable",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "revision.amount",
+     "ok": true,
+     "expected": 2000,
+     "actual": 2000
+    },
+    {
+     "name": "total",
+     "ok": true,
+     "expected": 2000,
+     "actual": 2000
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-03-en-revision-under-limit",
+   "kind": "guard",
+   "language": "en",
+   "tags": [
+    "revision under limit"
+   ],
+   "run_at": "2026-11-05 22:14 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "eye.classification",
+     "ok": true,
+     "expected": "in_scope",
+     "actual": "in_scope"
+    },
+    {
+     "name": "eye.rate_card_code",
+     "ok": true,
+     "expected": null,
+     "actual": null
+    },
+    {
+     "name": "eye.billable",
+     "ok": true,
+     "expected": false,
+     "actual": false
+    },
+    {
+     "name": "eye.amount",
+     "ok": true,
+     "expected": null,
+     "actual": null
+    },
+    {
+     "name": "total",
+     "ok": true,
+     "expected": 0,
+     "actual": 0
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-04-en-ambiguous-revision",
+   "kind": "guard",
+   "language": "en",
+   "tags": [
+    "ambiguous revision"
+   ],
+   "run_at": "2026-11-05 22:14 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "face.classification",
+     "ok": false,
+     "expected": "exceeds_limit",
+     "actual": "question"
+    },
+    {
+     "name": "face.rate_card_code",
+     "ok": true,
+     "expected": "EXTRA_REVISION",
+     "actual": "EXTRA_REVISION"
+    },
+    {
+     "name": "face.billable",
+     "ok": false,
+     "expected": true,
+     "actual": false
+    },
+    {
+     "name": "face.amount",
+     "ok": false,
+     "expected": 2000,
+     "actual": null
+    },
+    {
+     "name": "total",
+     "ok": false,
+     "expected": 2000,
+     "actual": 0
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-05-en-question",
+   "kind": "guard",
+   "language": "en",
+   "tags": [
+    "question"
+   ],
+   "run_at": "2026-11-05 22:15 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "outfit.classification",
+     "ok": true,
+     "expected": "question",
+     "actual": "question"
+    },
+    {
+     "name": "outfit.rate_card_code",
+     "ok": false,
+     "expected": null,
+     "actual": "EXTRA_OUTFIT"
+    },
+    {
+     "name": "outfit.billable",
+     "ok": true,
+     "expected": false,
+     "actual": false
+    },
+    {
+     "name": "outfit.amount",
+     "ok": true,
+     "expected": null,
+     "actual": null
+    },
+    {
+     "name": "total",
+     "ok": true,
+     "expected": 0,
+     "actual": 0
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-06-en-hedged-extra",
+   "kind": "guard",
+   "language": "en",
+   "tags": [
+    "hedged extra"
+   ],
+   "run_at": "2026-11-05 22:15 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "hoodie.classification",
+     "ok": true,
+     "expected": "question",
+     "actual": "question"
+    },
+    {
+     "name": "hoodie.rate_card_code",
+     "ok": false,
+     "expected": null,
+     "actual": "EXTRA_OUTFIT"
+    },
+    {
+     "name": "hoodie.billable",
+     "ok": true,
+     "expected": false,
+     "actual": false
+    },
+    {
+     "name": "hoodie.amount",
+     "ok": true,
+     "expected": null,
+     "actual": null
+    },
+    {
+     "name": "total",
+     "ok": true,
+     "expected": 0,
+     "actual": 0
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-07-en-unknown-extra",
+   "kind": "guard",
+   "language": "en",
+   "tags": [
+    "no rate-card match"
+   ],
+   "run_at": "2026-11-05 22:15 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "animat.classification",
+     "ok": true,
+     "expected": "out_of_scope",
+     "actual": "out_of_scope"
+    },
+    {
+     "name": "animat.rate_card_code",
+     "ok": true,
+     "expected": null,
+     "actual": null
+    },
+    {
+     "name": "animat.billable",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "animat.amount",
+     "ok": true,
+     "expected": null,
+     "actual": null
+    },
+    {
+     "name": "total",
+     "ok": true,
+     "expected": 0,
+     "actual": 0
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-08-en-multiple-amounts",
+   "kind": "guard",
+   "language": "en",
+   "tags": [
+    "multiple amounts"
+   ],
+   "run_at": "2026-11-05 22:15 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "outfit.classification",
+     "ok": true,
+     "expected": "out_of_scope",
+     "actual": "out_of_scope"
+    },
+    {
+     "name": "outfit.rate_card_code",
+     "ok": true,
+     "expected": "EXTRA_OUTFIT",
+     "actual": "EXTRA_OUTFIT"
+    },
+    {
+     "name": "outfit.billable",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "outfit.amount",
+     "ok": true,
+     "expected": 8000,
+     "actual": 8000
+    },
+    {
+     "name": "revision.classification",
+     "ok": true,
+     "expected": "exceeds_limit",
+     "actual": "exceeds_limit"
+    },
+    {
+     "name": "revision.rate_card_code",
+     "ok": true,
+     "expected": "EXTRA_REVISION",
+     "actual": "EXTRA_REVISION"
+    },
+    {
+     "name": "revision.billable",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "revision.amount",
+     "ok": true,
+     "expected": 2000,
+     "actual": 2000
+    },
+    {
+     "name": "total",
+     "ok": true,
+     "expected": 10000,
+     "actual": 10000
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-09-en-injection",
+   "kind": "guard",
+   "language": "en",
+   "tags": [
+    "prompt injection"
+   ],
+   "run_at": "2026-11-05 22:15 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "outfit.classification",
+     "ok": true,
+     "expected": "out_of_scope",
+     "actual": "out_of_scope"
+    },
+    {
+     "name": "outfit.rate_card_code",
+     "ok": true,
+     "expected": "EXTRA_OUTFIT",
+     "actual": "EXTRA_OUTFIT"
+    },
+    {
+     "name": "outfit.billable",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "outfit.amount",
+     "ok": true,
+     "expected": 8000,
+     "actual": 8000
+    },
+    {
+     "name": "total",
+     "ok": true,
+     "expected": 8000,
+     "actual": 8000
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-10-ko-extra-outfit",
+   "kind": "guard",
+   "language": "ko",
+   "tags": [
+    "explicit extra"
+   ],
+   "run_at": "2026-11-05 22:15 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "의상.classification",
+     "ok": true,
+     "expected": "out_of_scope",
+     "actual": "out_of_scope"
+    },
+    {
+     "name": "의상.rate_card_code",
+     "ok": true,
+     "expected": "EXTRA_OUTFIT",
+     "actual": "EXTRA_OUTFIT"
+    },
+    {
+     "name": "의상.billable",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "의상.amount",
+     "ok": true,
+     "expected": 8000,
+     "actual": 8000
+    },
+    {
+     "name": "total",
+     "ok": true,
+     "expected": 8000,
+     "actual": 8000
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-11-ko-revision-over-limit",
+   "kind": "guard",
+   "language": "ko",
+   "tags": [
+    "revision over limit"
+   ],
+   "run_at": "2026-11-05 22:15 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "수정.classification",
+     "ok": true,
+     "expected": "exceeds_limit",
+     "actual": "exceeds_limit"
+    },
+    {
+     "name": "수정.rate_card_code",
+     "ok": true,
+     "expected": "EXTRA_REVISION",
+     "actual": "EXTRA_REVISION"
+    },
+    {
+     "name": "수정.billable",
+     "ok": true,
+     "expected": true,
+     "actual": true
+    },
+    {
+     "name": "수정.amount",
+     "ok": true,
+     "expected": 2000,
+     "actual": 2000
+    },
+    {
+     "name": "total",
+     "ok": true,
+     "expected": 2000,
+     "actual": 2000
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  },
+  {
+   "id": "guard-12-ko-question",
+   "kind": "guard",
+   "language": "ko",
+   "tags": [
+    "question"
+   ],
+   "run_at": "2026-11-05 22:16 UTC",
+   "source": "live",
+   "model_id": "gemini-3.1-flash-lite",
+   "expectations": [
+    {
+     "name": "굿즈.classification",
+     "ok": true,
+     "expected": "question",
+     "actual": "question"
+    },
+    {
+     "name": "굿즈.rate_card_code",
+     "ok": false,
+     "expected": null,
+     "actual": "COMMERCIAL_LICENSE"
+    },
+    {
+     "name": "굿즈.billable",
+     "ok": true,
+     "expected": false,
+     "actual": false
+    },
+    {
+     "name": "굿즈.amount",
+     "ok": true,
+     "expected": null,
+     "actual": null
+    },
+    {
+     "name": "total",
+     "ok": true,
+     "expected": 0,
+     "actual": 0
+    }
+   ],
+   "attempts": [
+    "gemini-3.1-flash-lite: ok"
+   ]
+  }
+ ],
+ "total_calls": 21
+}

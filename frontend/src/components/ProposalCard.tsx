@@ -186,7 +186,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
             total={amount}
             currency={currency}
             revisions={{ used: project.revisions_used, included: project.revisions_included }}
-            footnote="Priced from your rate card. AI never sets a price."
+            footnote="Priced from your rate card by code. The AI picks the item and quantity; you review them."
           />
         </div>
       ) : (

@@ -190,7 +190,7 @@ export function Landing() {
                   <Chip tone="warn" icon="alert" className="mt-3">Needs confirmation</Chip>
                 </>
               }>
-                The agent reads the client's message, quotes the words behind each term, flags what is unclear, and drafts a reply in the client's language with a translation for you.
+                The agent reads the client's message, quotes the words behind each term, flags what is unclear, and drafts a reply with a translation for you. Tested with English and Korean.
               </Step>
               <Step n="02" title="Bill" sample={
                 <>
@@ -198,7 +198,7 @@ export function Landing() {
                   <Chip tone="success" icon="check" className="mt-3">Paid via PayPal</Chip>
                 </>
               }>
-                When a stage is due, the agent proposes a PayPal invoice with the agreed terms inside. You approve it, and the status comes back from PayPal.
+                When a stage is due, rules propose a PayPal invoice with the agreed terms inside. You approve it, the backend sends it to PayPal, and the status comes back from PayPal.
               </Step>
               <Step n="03" title="Guard" sample={
                 <>
@@ -206,7 +206,7 @@ export function Landing() {
                   <Chip tone="warn" icon="alert" className="mt-3">Exceeds limit: 2/2 revisions used</Chip>
                 </>
               }>
-                When the client asks for more, the agent checks the agreement, cites the clause, prices extras from your rate card, and drafts a polite reply.
+                When the client asks for more, the AI compares it with the agreement and cites a clause, code prices extras from your rate card, and you review before anything is billed.
               </Step>
             </ol>
           </div>
@@ -232,7 +232,7 @@ export function Landing() {
       </main>
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-[1440px] flex-wrap justify-between gap-2 px-4 py-6 text-[14px] text-muted sm:px-16">
-          <p>Accepting a scope is not a legal contract.</p>
+          <p>Demo acceptance is a click: it does not verify identity or provide an e-signature.</p>
           <p>Demo artwork is AI-generated.</p>
         </div>
       </footer>

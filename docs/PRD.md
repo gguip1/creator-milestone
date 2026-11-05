@@ -343,7 +343,7 @@ Visual direction: calm studio look, warm paper background, one blue accent, stat
 6. Invoice object and statuses: https://developer.paypal.com/invoicing/object/
 7. Invoicing webhooks: https://developer.paypal.com/api/invoicing/webhooks/
 8. Webhook verification: https://developer.paypal.com/api/rest/webhooks/rest/
-9. Agent Toolkit: https://developer.paypal.com/tools/agent-toolkit
+9. Agent Toolkit: https://github.com/paypal/agent-toolkit
 10. Troubleshooting: https://developer.paypal.com/invoicing/troubleshooting
 
 Sandbox base `https://api-m.sandbox.paypal.com`. Never call live.
@@ -677,4 +677,4 @@ Do not spend meaningful time on UI before step 3 is reported.
 ## 22. Sources for §1
 - Official Rules: https://paypalaihackathon.devpost.com/rules (pasted by the owner on 2026-11-03)
 - Overview: https://paypalaihackathon.devpost.com/ (pasted by the owner on 2026-11-03)
-- PayPal Agent Toolkit: https://developer.paypal.com/tools/agent-toolkit
+- PayPal Agent Toolkit: https://github.com/paypal/agent-toolkit

@@ -1,6 +1,6 @@
 # Demo video script
 
-Target length **2:40**, hard maximum 2:50 (Devpost limit: under 3 minutes). Narration is timed at about 140 words per minute (353 words, about 2:39 with short pauses). Captions matching it word for word are in [`demo-captions.srt`](demo-captions.srt). Upload to YouTube as public, with the SRT as the English caption track.
+Target length **2:40**, hard maximum 2:50 (Devpost limit: under 3 minutes). Narration is timed at about 140 words per minute (about 2:39 with short pauses; re-time after any wording change). Captions matching it word for word are in [`demo-captions.srt`](demo-captions.srt). Upload to YouTube as public, with the SRT as the English caption track.
 
 **What the video must make clear:** the problem (vague requests, free extras, payment chasing), who it is for (independent artists with clients abroad), why it matters (they get paid for the work they agreed to), and that it works end to end (agreement, real PayPal sandbox invoices, status read back from PayPal, scope creep caught and billed).
 
@@ -11,21 +11,21 @@ Screen actions are written against the flow and routes, not exact button labels 
 | Time | Route | On screen | Narration (word for word) |
 |---|---|---|---|
 | 0:00-0:20 | `/` | **Problem.** Landing page. Hold on the headline, then the three-step strip (Agree, Bill, Guard). | Jiwoo is an illustrator in Seoul. Her client is a VTuber abroad. Requests arrive vague, extra work creeps in for free, and chasing each payment is awkward. Each of those costs her money or time. CreatorMilestone is an AI back office for artists like her. |
-| 0:20-0:30 | `/` | **Rule.** Click Try the demo. Point at the sandbox banner. | The rule is simple: the AI proposes, Jiwoo approves, PayPal executes. This is the PayPal sandbox, so no real money moves. |
+| 0:20-0:30 | `/` | **Rule.** Click Try the demo. Point at the sandbox banner. | The rule is simple: AI reads the request, rules propose the invoice, Jiwoo approves, and the backend calls PayPal. This is the PayPal sandbox, so no real money moves. |
 | 0:30-0:54 | `/projects/:id/intake` | **Agree: intake.** Click Paste example, then Analyze. Hover the flagged revisions field, then scroll to the reply draft with its Korean translation. | She pastes the client's message. Every field shows where it came from. The agent lists every term with the exact words it relied on. Revisions are flagged, because the client only said maybe. Usage rights and the client's email are unknown. It drafts a reply in English, with a Korean translation for her. |
 | 0:54-1:02 | `/projects/:id/intake, then /c/:token` | **Agree: accept.** Fill the missing fields, accept as seller. Switch to the client page at phone width and accept. | She fills the gaps and accepts. The client accepts on their phone. Now both sides share the same terms. |
-| 1:02-1:18 | `/projects/:id` | **Bill.** Show the Bill deposit card. Click Approve, then Approve on the send card. | The agent proposes the deposit invoice. The amount comes from the milestone plan, never from the model. Jiwoo approves, and the backend creates a PayPal invoice with the agreed terms inside it, then sends it. |
-| 1:18-1:34 | `/projects/:id` | **Paid.** Show the paid state: Paid via PayPal on the deposit and the activity row Status read from PayPal. | The sandbox buyer pays, and PayPal reports the invoice paid. Only then does the app settle the milestone. To save time here, a shortcut reuses an invoice paid earlier, and the app still asks PayPal. |
-| 1:34-2:02 | `/projects/:id/messages/new` | **Guard.** Click Paste example, run Scope Guard, then show the change-order card: evidence rows, rate-card amounts, total. | Then the client asks for more: a second outfit, one more face revision, and maybe merch use. Scope Guard checks the agreement. The outfit is out of scope. The face edit exceeds the two included revisions. Merch is only a question, so it is not billed. Extras are priced from Jiwoo's rate card, a hundred dollars total. The AI never sets a price. |
+| 1:02-1:18 | `/projects/:id` | **Bill.** Show the Bill deposit card. Click Approve, then Approve on the send card. | Rules propose the deposit invoice. The amount comes from the milestone plan, not from the model. Jiwoo approves, and the backend creates a PayPal invoice with the agreed terms inside it, then sends it. |
+| 1:18-1:34 | `/projects/:id` | **Paid.** Open the invoice's PayPal link, pay as the sandbox buyer (keep the login out of frame), then show Paid via PayPal on the deposit and the activity row Status read from PayPal. | The sandbox buyer pays this invoice on PayPal's page, and PayPal reports it paid. Only then does the app settle the milestone. |
+| 1:34-2:02 | `/projects/:id/messages/new` | **Guard.** Click Paste example, run Scope Guard, then show the change-order card: evidence rows, rate-card amounts, total. | Then the client asks for more: a second outfit, one more face revision, and maybe merch use. Scope Guard checks the agreement. The outfit is out of scope. The face edit exceeds the two included revisions. Merch is only a question, so it is not billed. Extras are priced from Jiwoo's rate card, a hundred dollars total. Code sets the price; Jiwoo reviews it. |
 | 2:02-2:08 | `/projects/:id, then /c/:token` | **Change order.** Approve the card. Open the client page at phone width and approve the change order. | Jiwoo approves, and the client approves on their page. That creates scope version two. |
-| 2:08-2:16 | `/projects/:id` | **Second invoice.** Show the change-order bill card with two lines. Approve, then approve send. Show the sent state. | The agent proposes a second invoice, one line per extra. Jiwoo approves, and it goes out through PayPal. |
-| 2:16-2:39 | `/projects/:id` | **Close.** Show the final timeline, then cut to the title card with the repository URL. | Gemini reads and drafts. Rules compute the money. A validator checks every PayPal write, and 466 automated tests pass. Sandbox only, messages are pasted, one seller account. Every claim here is in the repository, with a log of real sandbox calls. CreatorMilestone: get paid for the work you agreed to. |
+| 2:08-2:16 | `/projects/:id` | **Second invoice.** Show the change-order bill card with two lines. Approve, then approve send. Show the sent state. | Rules propose a second invoice, one line per extra. Jiwoo approves, and it goes out through PayPal. |
+| 2:16-2:39 | `/projects/:id` | **Close.** Show the final timeline, then cut to the title card with the repository URL. | Gemini reads and drafts. Rules compute the money. A validator checks every PayPal write, and automated tests pass. The AI is checked on a small labeled set, with its misses published. Sandbox only, messages are pasted, one seller account. Every claim here is in the repository, with a log of real sandbox calls. CreatorMilestone: get paid for the work you agreed to. |
 
 Architecture frame: during the Close segment, cut for about 6 seconds to the architecture diagram from the README (the Mermaid chart as rendered on GitHub), pointing at the line between the model and PayPal. If time is tight, drop the sentence "Sandbox only, messages are pasted, one seller account." from the narration and the SRT; do not drop the limits from the Devpost text.
 
-### Alternate narration if you pay live on camera
+### Quick path for judges: the shortcut (not the recorded flow)
 
-PRD rule: show PAID only if it happened in that session. If you record a real payment (preferred, see the checklist), replace the second sentence of the Paid segment with: "Here the sandbox buyer pays on PayPal's invoice page, and the app reads it back as paid." Change the matching caption cue, and keep the total under 2:50. If you use the shortcut, keep the default narration, which says plainly that an earlier paid invoice is reused.
+PRD rule: show PAID only if it happened in that session. The recorded video should pay the newly created deposit invoice for real, as above. The **Jump to: deposit paid** shortcut is only the judges' quick path in the hosted demo. It reuses an earlier sandbox payment and does not pay the current invoice. If it ever appears on camera, put a caption on screen and say: "To save time, a shortcut reuses an earlier sandbox payment. It does not pay this invoice." Never present it as payment of the current invoice.
 
 ## How to record
 
@@ -45,8 +45,8 @@ PRD rule: show PAID only if it happened in that session. If you record a real pa
 - [ ] Sandbox banner visible at the start and when PayPal appears.
 - [ ] The sandbox buyer login is **not** visible on screen at any point (password fields masked, no screenshots of credentials).
 - [ ] Only the demo's own sample data on screen (the example messages, `client@example.com`); no real names, emails, or tokens.
-- [ ] PayPal invoice page shown with the agreed terms in the note and terms, if you pay live.
-- [ ] "Paid via PayPal" shown only if it happened in that session, or the shortcut is named as a shortcut in the narration.
+- [ ] PayPal invoice page shown with the agreed terms in the note and terms, and the buyer paying that same invoice (matching invoice number and amount).
+- [ ] "Paid via PayPal" shown only for an invoice paid in that session. If the shortcut is used, label it on screen as an earlier sandbox payment that does not pay the current invoice.
 - [ ] Client page recorded at phone width (390).
 - [ ] No PayPal logo used as our branding; PayPal appears only as the product's own pages and text. No other third-party logos, trademarks, or footage.
 - [ ] No music, or music you own or have a license for. Narration only is fine.

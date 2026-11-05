@@ -267,7 +267,7 @@ function AcceptBar({ view, onAccept, pending, error }: { view: ClientView; onAcc
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-canvas px-4 pt-4 pb-5 sm:static sm:mt-8 sm:border-0 sm:bg-transparent sm:p-0">
       <div className="mx-auto max-w-[720px]">
         <p className="text-[14px] leading-5 text-muted">
-          You pay each stage through a PayPal invoice. Accepting sends no money and is not a legal contract.
+          You pay each stage through a PayPal invoice. Accepting sends no money. In this demo it is a click: it does not verify identity or act as an e-signature.
         </p>
         <div className="mt-3">
           <Button block icon={<Check size={18} aria-hidden />} pending={pending} onClick={onAccept}>
