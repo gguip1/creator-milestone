@@ -33,7 +33,7 @@ dev = APIRouter(prefix="/dev")
 
 
 def build(fake: FakePayPal, database_url: str) -> Settings:
-    # _env_file=None and explicit values: a shell variable or backend/.env cannot switch on real calls.
+    # _env_file=None and explicit values: neither the shell nor backend/.env can enable real calls.
     settings = Settings(
         _env_file=None,
         paypal_client_id="fake-client-id",
