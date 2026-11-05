@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import { ProposalCard } from "../components/ProposalCard";
-import { ActorTag, AppShell, Button, Chip, cx, ErrorNote, ExampleRow, Eyebrow, Loading, Mono, NextCallout, SampleArt, TotalBreakdown } from "../components/ui";
+import { ActorTag, AppShell, Button, Chip, cx, ErrorNote, ExampleRow, Loading, Mono, NextCallout, SampleArt, TotalBreakdown } from "../components/ui";
 import { describeActivity } from "../lib/activity";
 import { api, ApiError, type ChangeOrder, type Milestone, type Project, type Proposal } from "../lib/api";
 import { formatDate, formatMoney, formatTime, percent } from "../lib/format";
