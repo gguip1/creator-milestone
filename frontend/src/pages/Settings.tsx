@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Plug } from "lucide-react";
 import { useEffect, useState } from "react";
-import { AppShell, Button, Chip, ErrorNote, Loading, PageTitle } from "../components/ui";
+import { AppShell, Button, Chip, ErrorNote, ExampleRow, Loading, NextCallout, PageTitle } from "../components/ui";
 import { api, type RateCardItem } from "../lib/api";
 import { formatMoney, moneyInput, parseMoney } from "../lib/format";
 import { lastProjectId } from "../lib/hooks";
@@ -40,6 +40,7 @@ export function SettingsPage() {
   return (
     <AppShell projectId={lastProjectId()}>
       <PageTitle eyebrow="Workspace" title="Settings">Your rate card prices extras. PayPal is the only payment rail, and it runs in the sandbox.</PageTitle>
+      <NextCallout title="Optional: check your prices" why="Settings are not part of the demo steps. Scope Guard prices every extra from this rate card, so change a price here only if you want a different quote on the next message." />
       <div className="grid gap-6 min-[1000px]:grid-cols-[3fr_2fr]">
         <section aria-labelledby="rate-h" className="rounded-lg border border-line p-6 sm:p-8">
           <h2 id="rate-h" className="eyebrow">Rate card</h2>
@@ -59,12 +60,15 @@ export function SettingsPage() {
               </li>
             ))}
           </ul>
+          <ExampleRow className="mt-4">
+            Change the price of one extra, for example Extra outfit from 80.00 to 90.00, and press Save rate card. The next Scope Guard check uses the new price.
+          </ExampleRow>
           <div className="mt-4 flex flex-wrap items-end gap-3">
             <label className="text-[14px] font-medium">New item
-              <input className={`${input} mt-1 block font-normal`} value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} placeholder="Name" />
+              <input className={`${input} mt-1 block font-normal`} value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} placeholder="Example: Background" />
             </label>
             <label className="text-[14px] font-medium">Price
-              <input inputMode="decimal" className={`${input} mt-1 block w-28 text-right font-mono font-normal`} value={add.price} onChange={(e) => setAdd({ ...add, price: e.target.value })} placeholder="0.00" />
+              <input inputMode="decimal" className={`${input} mt-1 block w-28 text-right font-mono font-normal`} value={add.price} onChange={(e) => setAdd({ ...add, price: e.target.value })} placeholder="Example: 40.00" />
             </label>
             <Button
               variant="secondary"

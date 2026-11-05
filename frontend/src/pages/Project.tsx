@@ -3,12 +3,12 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import { ProposalCard } from "../components/ProposalCard";
-import { ActorTag, AppShell, Button, Chip, cx, ErrorNote, Eyebrow, Loading, Mono, SampleArt, TotalBreakdown } from "../components/ui";
+import { ActorTag, AppShell, Button, Chip, cx, ErrorNote, ExampleRow, Eyebrow, Loading, Mono, NextCallout, SampleArt, TotalBreakdown } from "../components/ui";
 import { describeActivity } from "../lib/activity";
 import { api, ApiError, type ChangeOrder, type Milestone, type Project, type Proposal } from "../lib/api";
 import { formatDate, formatMoney, formatTime, percent } from "../lib/format";
 import { ART, milestoneArt } from "../lib/art";
-import { copyText, useProject, useProjectMutation } from "../lib/hooks";
+import { awaitingPayment, copyText, useProject, useProjectMutation } from "../lib/hooks";
 import { paypalStatus } from "../lib/status";
 
 export function ProjectPage() {
@@ -97,6 +97,58 @@ function Summary({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
+type Next = { title: string; why: string; to?: string; external?: boolean; anchor?: string; cta?: string };
+
+/** What the seller should do now, read from the project's real state. */
+function nextFor(project: Project): Next {
+  const v = project.scope_version;
+  if (project.status === "DRAFT")
+    return { title: "Read the client's request", why: "The agent lists every term with the words it relied on, so you can agree a scope.", to: `/projects/${project.id}/intake`, cta: "Go to intake" };
+  if (project.status === "AWAITING_ACCEPTANCE")
+    return { title: `Wait for the client to accept scope v${v}`, why: "Billing starts once you both accept. Open the client page to play the client.", to: project.client_path, external: true, cta: "Open the client page" };
+  if (project.status === "CANCELLED") return { title: "This commission was cancelled", why: "Start a new demo project from the landing page.", to: "/", cta: "Back to start" };
+  const pending = project.proposals.find((p) => p.status === "PENDING");
+  if (pending) {
+    const why: Record<string, string> = {
+      BILL_MILESTONE: "Approving creates a draft invoice at PayPal. Nothing reaches the client yet.",
+      SEND_INVOICE: "Sending gives the client a sandbox payment link.",
+      SEND_REMINDER: "PayPal emails the client a reminder.",
+      CANCEL_INVOICE: "PayPal cancels the invoice; the stage can be billed again.",
+      CHANGE_ORDER: "The client approves next on their page, then you approve the PayPal invoice.",
+    };
+    return { title: "Approve or change the agent's card", why: why[pending.kind], anchor: "#agent-h", cta: "Go to the card" };
+  }
+  const coWaiting = project.change_orders.find((c) => c.status === "SELLER_APPROVED");
+  if (coWaiting)
+    return { title: `Wait for the client to approve change order #${coWaiting.number}`, why: "Share the client page so they can approve it. Then the agent proposes the invoice.", to: project.client_path, external: true, cta: "Open the client page" };
+  const toDeliver = project.milestones.find((m) => m.workflow_state === "AWAITING_DELIVERY");
+  if (toDeliver)
+    return { title: `Share “${toDeliver.title}” with the client`, why: "Log it as shared, with a link and a note. The client then approves it and the agent proposes the invoice.", anchor: "#milestones-h", cta: "Go to the milestone" };
+  const delivered = project.milestones.find((m) => m.workflow_state === "DELIVERED");
+  if (delivered)
+    return { title: `Wait for the client to approve “${delivered.title}”`, why: "The agent proposes the invoice as soon as they approve it on their page.", to: project.client_path, external: true, cta: "Open the client page" };
+  if (awaitingPayment(project))
+    return { title: "Wait for the client to pay", why: "Open the invoice as the sandbox buyer, or press Check PayPal now. Status always comes from PayPal.", anchor: "#milestones-h", cta: "See the milestones" };
+  if (project.status === "COMPLETED") return { title: "The commission is complete", why: "Every stage is billed and settled. Nothing is waiting." };
+  if (project.change_orders.length === 0)
+    return { title: "Paste the client's next message", why: "Scope Guard checks it against the agreement and prices any extras from your rate card.", to: `/projects/${project.id}/messages/new`, cta: "Check a new message" };
+  return { title: "Nothing is waiting for you", why: "When the client writes again, paste their message and the agent checks it against the agreement." };
+}
+
+function NextStepCallout({ project }: { project: Project }) {
+  const n = nextFor(project);
+  const cls = "inline-flex items-center gap-2 rounded-md border border-accent bg-accent px-5 py-2.5 font-medium text-on-accent hover:bg-accent-deep";
+  return (
+    <NextCallout title={n.title} why={n.why} className="mt-6 mb-0">
+      {n.cta && n.anchor && <a href={n.anchor} className={cls}>{n.cta}</a>}
+      {n.cta && n.to && n.external && (
+        <a href={n.to} target="_blank" rel="noreferrer" className={cls}>{n.cta} <ExternalLink size={16} aria-hidden /></a>
+      )}
+      {n.cta && n.to && !n.external && <Link to={n.to} className={cls}>{n.cta}</Link>}
+    </NextCallout>
+  );
+}
+
 function ProjectView({ project }: { project: Project }) {
   const accepted =
     project.seller_accepted_version === project.scope_version &&
@@ -130,8 +182,9 @@ function ProjectView({ project }: { project: Project }) {
         </p>
       </div>
 
+      <NextStepCallout project={project} />
       <DemoJumps project={project} />
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-b border-line py-5 md:grid-cols-3 xl:grid-cols-6">
+      <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-y border-line py-5 md:grid-cols-3 xl:grid-cols-6">
         <Summary label="Deliverable">{project.deliverables.join("; ") || "—"}</Summary>
         <Summary label="Files">{project.file_formats.join(", ") || "—"}</Summary>
         <Summary label="Revisions">
@@ -214,8 +267,51 @@ type Row = {
   art?: keyof typeof ART | null;
 };
 
+const EXAMPLE_DELIVERY: Record<string, { url: string; note: string }> = {
+  sketch: { url: "/demo-art/sketch.png", note: "Rough sketch attached. Please check the pose and the outfit before I start coloring." },
+  final: { url: "/demo-art/final.png", note: "Final files attached: transparent PNG and layered PSD." },
+};
+
+/** Optional link and note for logging a delivery. The example only fills the boxes; sharing needs the button. */
+function DeliverForm({ milestone, pending, error, onSubmit }: { milestone: Milestone; pending: boolean; error: unknown; onSubmit: (note: string, url: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState("");
+  const [note, setNote] = useState("");
+  const example = EXAMPLE_DELIVERY[milestoneArt(milestone.title) ?? "sketch"];
+  if (!open) {
+    return (
+      <Button variant="secondary" className="px-3 py-1.5 text-[14px]" onClick={() => setOpen(true)}>
+        Share with client
+      </Button>
+    );
+  }
+  const field = "mt-1 w-full rounded-md border border-line-strong bg-fill px-3 py-2 text-[15px] font-normal";
+  return (
+    <div className="mt-2 space-y-3 rounded-lg border border-line p-4">
+      <label className="block text-[14px]">
+        Link to the file (optional)
+        <input className={field} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" inputMode="url" />
+      </label>
+      <label className="block text-[14px]">
+        Note for the client (optional)
+        <textarea className={field} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+      </label>
+      <ExampleRow button="Use example" onUse={() => { setUrl(`${window.location.origin}${example.url}`); setNote(example.note); }}>
+        The sample art link and a short note. Nothing is shared until you press the button below.
+      </ExampleRow>
+      <ErrorNote error={error} />
+      <div className="flex flex-wrap gap-3">
+        <Button pending={pending} onClick={() => onSubmit(note, url)}>Log as shared with client</Button>
+        <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
 function Milestones({ project }: { project: Project }) {
-  const deliver = useProjectMutation(project.id, (milestoneId: string) => api.deliver(milestoneId));
+  const deliver = useProjectMutation(project.id, (v: { id: string; note: string; url: string }) =>
+    api.deliver(v.id, v.note.trim() || undefined, v.url.trim() || undefined),
+  );
   const bring = useProjectMutation(project.id, (milestoneId: string) => api.proposeBill(milestoneId));
   const refresh = useProjectMutation(project.id, (invoiceId: string) => api.refreshInvoice(invoiceId));
   const livePending = (m: Milestone) =>
@@ -270,9 +366,7 @@ function Milestones({ project }: { project: Project }) {
           chip = <Chip icon={<Hourglass size={15} aria-hidden />}>Waiting for you to deliver</Chip>;
           detail = "Log it as shared so the client can approve.";
           action = (
-            <Button variant="secondary" className="px-3 py-1.5 text-[14px]" pending={deliver.isPending} onClick={() => deliver.mutate(m.id)}>
-              Log as shared with client
-            </Button>
+            <DeliverForm milestone={m} pending={deliver.isPending} error={deliver.error} onSubmit={(note, url) => deliver.mutate({ id: m.id, note, url })} />
           );
           icon = <Dot />;
           break;
@@ -471,7 +565,7 @@ function AgentPanel({ project }: { project: Project }) {
 
 function NextStep({ title, children, to, cta, external }: { title: string; children: React.ReactNode; to: string; cta: string; external?: boolean }) {
   return (
-    <div className="rounded-lg border-2 border-accent p-5">
+    <div className={cx("rounded-lg p-5", external ? "border border-line" : "border-2 border-accent")}>
       <h3 className="font-display text-[22px] leading-7">{title}</h3>
       <p className="mt-1 text-muted">{children}</p>
       <div className="mt-3">

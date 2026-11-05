@@ -158,7 +158,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
     >
       <div className="px-5 pt-5 pb-4 sm:px-6">
         <p className="eyebrow">{kicker}</p>
-        <div className="mt-1 flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
           <h3 className="font-display text-[22px] leading-7 sm:text-[24px] sm:leading-8">
             {failed ? "PayPal could not complete this step" : executed && p.kind === "SEND_INVOICE" ? "Invoice sent" : titleFor(p, working)}
           </h3>

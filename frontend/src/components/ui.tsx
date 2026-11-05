@@ -8,6 +8,7 @@ import {
   Clock,
   FileText,
   Loader2,
+  Lock,
   Send,
   Undo2,
   X,
@@ -16,9 +17,10 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { Link, NavLink } from "react-router";
+import { Link } from "react-router";
 import { api, ApiError } from "../lib/api";
 import { formatMoney } from "../lib/format";
+import { projectSteps } from "../lib/steps";
 import type { IconName, Tone } from "../lib/status";
 import { useWaking } from "../lib/waking";
 
@@ -155,22 +157,10 @@ export function Button({
   );
 }
 
-function BuyerLogin() {
+function JudgeNote() {
   const info = useQuery({ queryKey: ["demoInfo"], queryFn: api.demoInfo, staleTime: Infinity, retry: 2 });
   if (!info.data?.judge_mode) return null;
-  const { email, password } = info.data.buyer_login;
-  return (
-    <p className="text-[14px] text-neutral">
-      Pay as the sandbox buyer:{" "}
-      {email && password ? (
-        <>
-          <span className="font-mono">{email}</span> / <span className="font-mono">{password}</span>
-        </>
-      ) : (
-        "the login is in the submission's testing instructions."
-      )}
-    </p>
-  );
+  return <p className="text-[14px] text-neutral">Paying the sandbox invoice: see the testing instructions in the submission.</p>;
 }
 
 function WakingNotice() {
@@ -195,7 +185,7 @@ export function SandboxBanner({ notice = true }: { notice?: boolean }) {
           </span>
           {notice && <span className="hidden text-muted lg:inline">PayPal sandbox test invoices</span>}
           <span className="sm:ml-auto">
-            <BuyerLogin />
+            <JudgeNote />
           </span>
         </div>
       </div>
@@ -212,33 +202,71 @@ export function Wordmark({ to = "/" }: { to?: string }) {
   );
 }
 
+const STEP_ICON = { done: Check, current: null, todo: null, locked: Lock } as const;
+
+/** The demo flow as numbered steps. Done, current, and locked are shown by icon and text, not color alone. */
+function StepNav({ id }: { id: string }) {
+  const project = useQuery({ queryKey: ["project", id], queryFn: () => api.project(id) });
+  const steps = projectSteps(id, project.data);
+  return (
+    <nav aria-label="Demo steps" className="border-t border-line">
+      <ol className="mx-auto grid max-w-[1440px] grid-cols-2 gap-x-4 px-4 sm:grid-cols-4 sm:px-10">
+        {steps.map((s) => {
+          const Icon = STEP_ICON[s.state];
+          const body = (
+            <>
+              <span
+                aria-hidden
+                className={cx(
+                  "flex size-6 shrink-0 items-center justify-center rounded-full border font-mono text-[12px]",
+                  s.state === "done" && "border-accent bg-accent text-on-accent",
+                  s.state === "current" && "border-accent text-accent",
+                  s.state === "todo" && "border-line-strong text-muted",
+                  s.state === "locked" && "border-line text-muted",
+                )}
+              >
+                {Icon ? <Icon size={12} /> : s.n}
+              </span>
+              <span className="min-w-0">
+                <span className={cx("block text-[14px] leading-5", s.state === "current" ? "text-ink" : s.state === "locked" ? "text-muted" : "text-neutral")}>
+                  {s.label}
+                </span>
+                <span className="block text-[12px] leading-4 text-muted">
+                  {s.state === "done" ? "Done" : s.state === "current" ? "Do this now" : s.state === "locked" ? "Locked until the earlier step" : "Available"}
+                </span>
+              </span>
+            </>
+          );
+          const base = cx(
+            "flex items-start gap-2.5 border-b-2 py-3",
+            s.state === "current" ? "border-accent" : "border-transparent",
+          );
+          return (
+            <li key={s.n}>
+              {s.state === "locked" ? (
+                <span className={cx(base, "cursor-not-allowed")} aria-disabled="true">{body}</span>
+              ) : (
+                <Link to={s.to} aria-current={s.state === "current" ? "step" : undefined} className={cx(base, "hover:bg-fill")}>{body}</Link>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
 export function AppHeader({ projectId }: { projectId?: string | null }) {
-  const link = ({ isActive }: { isActive: boolean }) =>
-    cx("py-1 text-[15px]", isActive ? "text-ink underline decoration-accent decoration-2 underline-offset-[10px]" : "text-muted hover:text-ink");
   return (
     <header className="border-b border-line">
-      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-8 gap-y-2 px-4 py-3 sm:px-10">
+      <div className="mx-auto flex max-w-[1440px] items-center gap-x-8 px-4 py-3 sm:px-10">
         <Wordmark to={projectId ? `/projects/${projectId}` : "/"} />
-        <nav aria-label="Main" className="flex flex-wrap items-center gap-x-6 gap-y-1">
-          {projectId && (
-            <>
-              <NavLink end to={`/projects/${projectId}`} className={link}>
-                Project
-              </NavLink>
-              <NavLink to={`/projects/${projectId}/intake`} className={link}>
-                Intake
-              </NavLink>
-              <NavLink to={`/projects/${projectId}/messages/new`} className={link}>
-                New message
-              </NavLink>
-            </>
-          )}
-          <NavLink to="/settings" className={link}>
-            Settings
-          </NavLink>
-        </nav>
         <span className="ml-auto hidden text-[14px] text-muted sm:block">Jiwoo, seller</span>
+        <Link to="/settings" className="text-[14px] text-muted underline decoration-line-strong underline-offset-4 hover:text-ink">
+          Settings
+        </Link>
       </div>
+      {projectId && <StepNav id={projectId} />}
     </header>
   );
 }
@@ -353,6 +381,57 @@ export function AiProgress({ active, stages, task }: { active: boolean; stages: 
           : "If the AI service is busy this can take up to a minute."}{" "}
         <span className="font-mono">{seconds}s</span>
       </p>
+    </div>
+  );
+}
+
+/** What to do now and why, with the primary action beside it. One per screen. */
+export function NextCallout({
+  title,
+  why,
+  children,
+  className,
+}: {
+  title: string;
+  why: ReactNode;
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section aria-label="Next step" className={cx("mb-8 flex flex-wrap items-center justify-between gap-x-8 gap-y-4 rounded-lg border border-line bg-fill px-5 py-4", className)}>
+      <div className="min-w-0 max-w-[62ch]">
+        <p className="eyebrow !text-accent">Next step</p>
+        <p className="mt-1 text-[18px] leading-7 text-ink">{title}</p>
+        <p className="mt-0.5 text-[15px] leading-6 text-muted">{why}</p>
+      </div>
+      {children && <div className="flex flex-wrap items-center gap-3">{children}</div>}
+    </section>
+  );
+}
+
+/** A labeled example the person can choose to fill in. It never submits anything. */
+export function ExampleRow({
+  children,
+  button,
+  onUse,
+  className,
+}: {
+  children: ReactNode;
+  button?: string;
+  onUse?: () => void;
+  className?: string;
+}) {
+  return (
+    <div className={cx("flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md border border-dashed border-line-strong px-3 py-2.5", className)}>
+      <p className="min-w-0 flex-1 basis-[16rem] text-[14px] leading-5 text-muted">
+        <span className="eyebrow mr-2 !text-[12px] !tracking-[0.14em] !text-neutral">Example</span>
+        {children}
+      </p>
+      {button && onUse && (
+        <Button variant="secondary" className="px-3 py-1.5 text-[14px]" onClick={onUse}>
+          {button}
+        </Button>
+      )}
     </div>
   );
 }

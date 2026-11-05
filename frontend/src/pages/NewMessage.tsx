@@ -3,7 +3,7 @@ import { ArrowRight, Copy } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { EvidenceTable, type EvidenceRow } from "../components/evidence";
-import { AiProgress, AppShell, Button, CharCount, Chip, ErrorNote, Loading, PageTitle } from "../components/ui";
+import { AiProgress, AppShell, Button, CharCount, Chip, ErrorNote, ExampleRow, Loading, NextCallout, PageTitle } from "../components/ui";
 import { api, type FollowUp } from "../lib/api";
 import { EXAMPLE_FOLLOW_UP } from "../lib/examples";
 import { isOutfit } from "../lib/art";
@@ -57,6 +57,17 @@ export function NewMessagePage() {
         Paste what the client wrote. The agent compares it with the agreed scope and prices extras from your rate card.
       </PageTitle>
       {project.isPending && <Loading />}
+      {result ? (
+        result.change_order ? (
+          <NextCallout title={`Review change order #${result.change_order.number}`} why="The agent's card is waiting on the project page. Approve it, then the client decides on their page.">
+            <Link to={`/projects/${id}`} className="inline-flex items-center gap-2 rounded-md border border-accent bg-accent px-5 py-2.5 font-medium text-on-accent hover:bg-accent-deep">Go to the card</Link>
+          </NextCallout>
+        ) : (
+          <NextCallout title="Nothing to bill" why="Every request was in scope or only a question, so no change order was created. You can copy the reply draft below." />
+        )
+      ) : (
+        <NextCallout title="Paste the client's new message" why="Scope Guard compares each request with the agreed scope, cites the clause, and prices extras from your rate card. The example is message 2 from the demo." />
+      )}
       {p && !["AGREED", "IN_PROGRESS"].includes(p.status) && (
         <p role="status" className="mb-6 rounded-lg border border-line p-4 text-muted">
           Scope Guard needs an agreed scope, and this one is <strong>{p.status.replace("_", " ").toLowerCase()}</strong>.{" "}
@@ -78,8 +89,10 @@ export function NewMessagePage() {
           <Button pending={check.isPending} disabled={!message.trim() || message.length > 5000} onClick={() => check.mutate()}>
             Check against scope
           </Button>
-          <Button variant="secondary" onClick={() => setMessage(EXAMPLE_FOLLOW_UP)}>Paste example</Button>
         </div>
+        <ExampleRow className="mt-4" button="Use example message 2" onUse={() => setMessage(EXAMPLE_FOLLOW_UP)}>
+          The demo client's follow-up after the sketch: a second outfit, one more pass on the face, and a merch question. It only fills the box; nothing is checked until you press the button.
+        </ExampleRow>
         <div className="mt-2"><CharCount length={message.length} limit={5000} /></div>
         <AiProgress
           active={check.isPending}

@@ -467,8 +467,11 @@ export const api = {
   logRevision: (id: string) => post<Project>(`/api/projects/${id}/revisions`, { count: 1 }),
   postMessage: (id: string, body: string, language?: string) =>
     post<FollowUp>(`/api/projects/${id}/messages`, { body, language }),
-  deliver: (milestoneId: string, note?: string) =>
-    post<Project>(`/api/milestones/${milestoneId}/deliver`, note ? { note } : {}),
+  deliver: (milestoneId: string, note?: string, evidenceUrl?: string) =>
+    post<Project>(`/api/milestones/${milestoneId}/deliver`, {
+      ...(note ? { note } : {}),
+      ...(evidenceUrl ? { evidence_url: evidenceUrl } : {}),
+    }),
   proposeBill: (milestoneId: string) => post<Proposal>(`/api/milestones/${milestoneId}/propose-bill`),
   approveProposal: (id: string) => post<Proposal>(`/api/proposals/${id}/approve`),
   dismissProposal: (id: string) => post<Proposal>(`/api/proposals/${id}/dismiss`),

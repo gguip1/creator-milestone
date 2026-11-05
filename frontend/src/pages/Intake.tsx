@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { Marker, ProvChip, provKind, provMark, type ProvKind } from "../components/provenance";
-import { AiProgress, AppShell, Button, CharCount, Chip, cx, ErrorNote, Loading, Mono, PageTitle } from "../components/ui";
+import { AiProgress, AppShell, Button, CharCount, Chip, cx, ErrorNote, ExampleRow, Loading, Mono, NextCallout, PageTitle } from "../components/ui";
 import { api, ApiError, type ExtractedField, type IntakeAnalysis, type MilestonePlanEntry, type Project } from "../lib/api";
 import { EXAMPLE_INTAKE } from "../lib/examples";
 import { formatDate, formatMoney, moneyInput, parseMoney } from "../lib/format";
@@ -260,6 +260,18 @@ function IntakeView({ project }: { project: Project }) {
         </PageTitle>
       </div>
 
+      {locked ? (
+        <NextCallout title="The scope is agreed" why="Go to the project to bill the first milestone and see the agent's cards.">
+          <Link to={`/projects/${project.id}`} className="inline-flex rounded-md border border-accent bg-accent px-5 py-2.5 font-medium text-on-accent hover:bg-accent-deep">Go to the project</Link>
+        </NextCallout>
+      ) : !analysis ? (
+        <NextCallout title="Paste the client's first message" why="The agent lists every term it can find, with the exact words it relied on. Use the example message if you do not have one." />
+      ) : missing.length > 0 ? (
+        <NextCallout title="Fill in what the message left open" why={`Still needed: ${missing.join(", ")}. These are your choices, not the agent's.`} />
+      ) : (
+        <NextCallout title="Accept the scope and share it with the client" why="Both of you accept before any invoice is made. Accepting sends no money." />
+      )}
+
       <div className="grid gap-6 min-[1000px]:grid-cols-2">
         <section aria-labelledby="msg-h" className="rounded-lg border border-line p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -302,10 +314,14 @@ function IntakeView({ project }: { project: Project }) {
                 <Button pending={analyze.isPending} disabled={!message.trim() || message.length > MAX_MESSAGE} onClick={() => analyze.mutate()}>
                   Analyze
                 </Button>
-                <Button variant="secondary" onClick={() => setMessage(EXAMPLE_INTAKE)}>Paste example</Button>
               </>
             )}
           </div>
+          {!analysis && !stored && (
+            <ExampleRow className="mt-4" button="Use example message" onUse={() => setMessage(EXAMPLE_INTAKE)}>
+              The demo client's first message. It only fills the box; nothing is analyzed until you press Analyze.
+            </ExampleRow>
+          )}
           {!analysis && <div className="mt-2"><CharCount length={message.length} limit={MAX_MESSAGE} /></div>}
           <AiProgress
             active={analyze.isPending}
@@ -397,8 +413,8 @@ function IntakeView({ project }: { project: Project }) {
             <FormField label="Deliverables" kind={kindOf("deliverables")} value={form.deliverables} onChange={set("deliverables")} hint="Separate with ;" />
             <FormField label="File formats" kind={kindOf("file_formats")} value={form.fileFormats} onChange={set("fileFormats")} hint="Separate with ," />
             <FormField label="Deadline" type="date" kind={kindOf("deadline")} value={form.deadline} onChange={set("deadline")} />
-            <FormField label="Revisions included" kind={kindOf("revisions")} required value={form.revisions} onChange={set("revisions")} placeholder="Choose a number" inputMode="numeric" />
-            <FormField label="Usage rights" kind={kindOf("usage")} required value={form.usage} onChange={set("usage")} placeholder="Choose usage" list="usage-options" />
+            <FormField label="Revisions included" kind={kindOf("revisions")} required value={form.revisions} onChange={set("revisions")} placeholder="Example: 2" inputMode="numeric" />
+            <FormField label="Usage rights" kind={kindOf("usage")} required value={form.usage} onChange={set("usage")} placeholder="Example: Personal streaming" list="usage-options" />
             <datalist id="usage-options">
               <option value="Personal streaming" />
               <option value="Personal use only" />
@@ -409,6 +425,15 @@ function IntakeView({ project }: { project: Project }) {
             <FormField label="Currency" value={currency} onChange={() => undefined} readOnly />
             <FormField className="sm:col-span-2" label="Client name (optional)" value={form.clientName} onChange={set("clientName")} />
           </div>
+          {analysis && !locked && (!form.revisions.trim() || !form.usage.trim()) && (
+            <ExampleRow
+              className="mt-5"
+              button="Fill example values"
+              onUse={() => setForm((f) => ({ ...f, revisions: f.revisions.trim() || "2", usage: f.usage.trim() || "Personal streaming" }))}
+            >
+              For the open terms: revisions 2, usage Personal streaming. Use them only if you agree; you still accept the scope yourself.
+            </ExampleRow>
+          )}
         </section>
 
         <section aria-labelledby="plan-h" className="self-start rounded-lg border border-line p-6 sm:p-8">
@@ -420,7 +445,7 @@ function IntakeView({ project }: { project: Project }) {
           </div>
           <div aria-hidden className="mt-4 flex h-14 overflow-hidden rounded-md text-[14px]">
             {plan.map((m, i) => (
-              <div key={i} style={{ flexGrow: bpFromPercent(m.pct) ?? 0 }} className={cx("flex items-center justify-center gap-2 border-r-2 border-paper font-mono", ["bg-[#262626]", "bg-[#2f2f2f]", "bg-[#383838]"][i % 3])}>
+              <div key={i} style={{ flexGrow: bpFromPercent(m.pct) ?? 0 }} className={cx("flex items-center justify-center gap-2 border-r-2 border-canvas font-mono", ["bg-[#262626]", "bg-[#2f2f2f]", "bg-[#383838]"][i % 3])}>
                 {m.pct}% <span className="hidden sm:inline">{formatMoney(previewAmount(priceMinor, m.pct, m.amount, planUnchanged(project, plan)), currency)}</span>
               </div>
             ))}

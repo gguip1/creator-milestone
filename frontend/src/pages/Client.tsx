@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ExternalLink, X } from "lucide-react";
 import { useParams } from "react-router";
-import { Button, Chip, ErrorNote, Eyebrow, Loading, Mono, SampleArt, SandboxBanner, TotalBreakdown } from "../components/ui";
+import { Button, Chip, ErrorNote, Eyebrow, Loading, Mono, NextCallout, SampleArt, SandboxBanner, TotalBreakdown } from "../components/ui";
 import { api, type ClientChangeOrder, type ClientMilestone, type ClientView } from "../lib/api";
 import { ART, isOutfit, milestoneArt } from "../lib/art";
 import { formatDate, formatMoney } from "../lib/format";
@@ -46,6 +46,8 @@ export function ClientPage() {
                 <span className="text-[14px] text-muted">{view.currency_code}</span>
               </Mono>
             </div>
+
+            <ClientNext view={view} />
 
             {view.change_orders
               .filter((c) => c.can_decide)
@@ -112,6 +114,21 @@ export function ClientPage() {
       </main>
     </>
   );
+}
+
+/** What the client should do now, read from the page's real state. */
+function ClientNext({ view }: { view: ClientView }) {
+  const co = view.change_orders.find((c) => c.can_decide);
+  const toApprove = view.milestones.find((m) => m.can_approve);
+  const toPay = view.milestones.find((m) => m.invoice?.payer_link && paypalStatus(m.invoice.paypal_status).awaiting);
+  let n: { title: string; why: string };
+  if (co) n = { title: `Review change order #${co.number}`, why: "It lists what you asked for, what each item costs, and what is not billed. Approve or decline it below." };
+  else if (toApprove) n = { title: `Approve the ${toApprove.title.toLowerCase()}`, why: "Check the shared work below. Your approval lets the artist bill this stage." };
+  else if (toPay) n = { title: "Pay the PayPal invoice", why: "It opens in PayPal's sandbox, so no real money moves. Paying is what marks the stage as paid." };
+  else if (!view.client_accepted && view.can_accept) n = { title: `Read and accept scope v${view.scope_version}`, why: "Below is what you and the artist agree on. Accepting sends no money; you pay each stage by PayPal invoice later." };
+  else if (!view.can_accept && !view.client_accepted) n = { title: "Wait for the artist", why: `${view.seller_display_name} is still preparing this scope.` };
+  else n = { title: "Nothing to do right now", why: `${view.seller_display_name} will send the next step. Come back to this page when you hear from them.` };
+  return <NextCallout className="mt-6 mb-0" title={n.title} why={n.why} />;
 }
 
 function ChangeOrderCard({
