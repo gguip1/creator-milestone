@@ -175,7 +175,7 @@ function ProjectView({ project }: { project: Project }) {
           </p>
         </div>
         <p className="ml-auto flex items-baseline gap-3">
-          <Eyebrow>Total</Eyebrow>
+          <span className="eyebrow">Total</span>
           <Mono className="text-[24px] leading-none sm:text-[28px]">
             {formatMoney(total, project.currency_code)} {project.currency_code}
           </Mono>

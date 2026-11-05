@@ -104,7 +104,7 @@ export function SampleArt({
         width={480}
         height={640}
         loading="lazy"
-        className={cx("aspect-[3/4] rounded-md border border-line object-cover", compact ? "w-[56px] shrink-0" : "w-full")}
+        className={cx("aspect-[3/4] rounded-md border border-line object-cover", compact ? "w-[72px] shrink-0" : "w-full")}
       />
       <figcaption className={cx("text-[12px] leading-4 text-muted", !compact && "mt-1.5")}>Sample art (AI-generated)</figcaption>
     </figure>

@@ -127,7 +127,7 @@ export function Landing() {
                       {existing.invoices_at_paypal === 0 && " No invoices have been created at PayPal for this project."}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-3">
-                      <Button pending={demo.isPending} onClick={() => demo.mutate("reset")}>
+                      <Button variant="secondary" className="!border-warn !text-warn hover:!bg-warn-soft" pending={demo.isPending} onClick={() => demo.mutate("reset")}>
                         Erase and start over
                       </Button>
                       <Button variant="ghost" onClick={() => setConfirming(false)}>

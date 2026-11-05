@@ -53,7 +53,7 @@ export function NewMessagePage() {
 
   return (
     <AppShell projectId={id}>
-      <PageTitle eyebrow="Step 3 · Guard" title="Check a new client message">
+      <PageTitle eyebrow="Step 4 · Guard the scope" title="Check a new client message">
         Paste what the client wrote. The agent compares it with the agreed scope and prices extras from your rate card.
       </PageTitle>
       {project.isPending && <Loading />}

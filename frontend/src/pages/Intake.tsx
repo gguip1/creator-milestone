@@ -255,7 +255,7 @@ function IntakeView({ project }: { project: Project }) {
   return (
     <>
       <div>
-        <PageTitle eyebrow="Step 1 · Agree" title="Review the client's request">
+        <PageTitle eyebrow="Steps 1 and 2 · Read the request, agree the scope" title="Review the client's request">
           Every field shows where it came from. If the message does not say it, the agent says so.
         </PageTitle>
       </div>
@@ -272,7 +272,7 @@ function IntakeView({ project }: { project: Project }) {
         <NextCallout title="Accept the scope and share it with the client" why="Both of you accept before any invoice is made. Accepting sends no money." />
       )}
 
-      <div className="grid gap-6 min-[1000px]:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 min-[1000px]:grid-cols-2">
         <section aria-labelledby="msg-h" className="rounded-lg border border-line p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="msg-h" className="eyebrow">Client message 1</h2>
@@ -402,7 +402,7 @@ function IntakeView({ project }: { project: Project }) {
         </section>
       )}
 
-      <div className="mt-6 grid gap-6 min-[1000px]:grid-cols-2">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 min-[1000px]:grid-cols-2">
         <section aria-labelledby="scope-h" className="rounded-lg border border-line p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="scope-h" className="eyebrow">Scope, ready to edit</h2>
@@ -452,7 +452,7 @@ function IntakeView({ project }: { project: Project }) {
           </div>
           <ol className="mt-3">
             {plan.map((m, i) => (
-              <li key={i} className="flex items-center justify-between gap-4 border-b border-line py-3">
+              <li key={i} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line py-3">
                 <div>
                   <p><span className="mr-2 font-mono text-muted">{i + 1}</span>{m.title}</p>
                   <p className="text-[14px] text-muted">{m.trigger === "ON_AGREEMENT" ? "Bills when both sides accept" : "Bills when the client approves the delivery"}</p>

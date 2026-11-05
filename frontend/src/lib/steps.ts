@@ -10,7 +10,11 @@ const AGREED = ["AGREED", "IN_PROGRESS", "COMPLETED"];
 export function projectSteps(id: string, project: Project | undefined): Step[] {
   const read = !!project?.messages.some((m) => m.kind === "intake");
   const agreed = !!project && AGREED.includes(project.status);
-  const billed = !!project?.invoices.some((i) => paypalStatus(i.paypal_status).paid);
+  // Billing is done when every stage of the original plan has a paid invoice.
+  const plan = project?.milestones.filter((m) => m.kind === "plan") ?? [];
+  const billed =
+    plan.length > 0 &&
+    plan.every((m) => project!.invoices.some((i) => i.milestone_id === m.id && paypalStatus(i.paypal_status).paid));
   const guarded = !!project && project.change_orders.length > 0;
   const raw: { label: string; to: string; done: boolean; locked: boolean }[] = [
     { label: "Read the request", to: `/projects/${id}/intake`, done: read, locked: false },
