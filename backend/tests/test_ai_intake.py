@@ -276,6 +276,50 @@ async def test_questions_list_every_open_term():
     assert "Worth $5?" not in analysis.questions
 
 
+async def test_client_payment_question_is_not_asked_back():
+    analysis = await analyze(other_questions=["How does payment work?"])
+    assert "How does payment work?" not in analysis.questions
+
+
+async def test_reply_facts_use_plain_words_and_readable_dates():
+    provider = FakeProvider([raw_intake()], [GOOD_INTAKE_REPLY])
+    llm.set_provider(provider)
+    await analyze_intake(DEMO_MESSAGE_1, today=TODAY)
+    reply_input = provider.calls[1]["user"]
+    assert "November 25, 2026" in reply_input
+    assert "usage_rights" not in reply_input
+    assert "client_email" not in reply_input
+
+
+async def test_natural_wording_of_a_question_is_accepted():
+    """Live run on 2026-11-05: "will be used" was wrongly rejected, forcing the template."""
+    natural = {
+        "reply_draft_client": (
+            "Thank you! Your budget is {{BUDGET}}. Could you confirm the date and the revision "
+            "count? I suggest 30%, 30%, and 40%. How will the artwork be used, and which email "
+            "should receive invoices?"
+        ),
+        "reply_draft_seller_translation": GOOD_INTAKE_REPLY["reply_draft_seller_translation"],
+    }
+    provider = FakeProvider([raw_intake()], [natural])
+    llm.set_provider(provider)
+    analysis = await analyze_intake(DEMO_MESSAGE_1, today=TODAY)
+    assert len(provider.calls) == 2
+    assert "artwork be used" in analysis.reply_draft_client
+
+
+async def test_reply_with_an_internal_field_name_is_rejected():
+    leaky = {
+        **GOOD_INTAKE_REPLY,
+        "reply_draft_client": GOOD_INTAKE_REPLY["reply_draft_client"] + " Your usage_rights?",
+    }
+    provider = FakeProvider([raw_intake()], [leaky, GOOD_INTAKE_REPLY])
+    llm.set_provider(provider)
+    analysis = await analyze_intake(DEMO_MESSAGE_1, today=TODAY)
+    assert "usage_rights" not in analysis.reply_draft_client
+    assert len(provider.calls) == 3
+
+
 async def test_reply_prices_come_from_code():
     analysis = await analyze()
     assert "{{" not in analysis.reply_draft_client

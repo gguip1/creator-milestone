@@ -411,6 +411,40 @@ async def test_reply_dropping_a_billed_item_is_rejected():
     assert "$20.00" in result.reply_draft_client
 
 
+async def test_reply_that_skips_a_hedged_item_is_regenerated():
+    quote = "I might use it on merch later"
+    silent = {**NO_PRICE_REPLY}
+    named = {**NO_PRICE_REPLY, "reply_draft_client": "Thank you! About merch: what would you like?"}
+    provider = FakeProvider(
+        [raw_guard(raw_item("Merch.", quote, "question", topic="merch"))], [silent, named]
+    )
+    llm.set_provider(provider)
+    result = await guard_scope(
+        DEMO_MESSAGE_2, scope=demo_scope(), rate_card=DEMO_RATE_CARD, today=TODAY
+    )
+    assert "merch" in result.reply_draft_client
+    assert len(provider.calls) == 3
+
+
+async def test_topic_not_in_the_quote_is_ignored():
+    quote = "I might use it on merch later"
+    provider = FakeProvider(
+        [raw_guard(raw_item("Merch.", quote, "question", topic="invented"))], [NO_PRICE_REPLY]
+    )
+    llm.set_provider(provider)
+    await guard_scope(DEMO_MESSAGE_2, scope=demo_scope(), rate_card=DEMO_RATE_CARD, today=TODAY)
+    assert len(provider.calls) == 2
+
+
+async def test_reply_facts_use_plain_sentences():
+    provider = FakeProvider([raw_message_2()], [GOOD_GUARD_REPLY])
+    llm.set_provider(provider)
+    await guard_scope(DEMO_MESSAGE_2, scope=demo_scope(), rate_card=DEMO_RATE_CARD, today=TODAY)
+    reply_input = provider.calls[1]["user"]
+    assert "The agreed usage is Personal streaming use." in reply_input
+    assert "usage_rights:" not in reply_input
+
+
 async def test_template_separates_included_extra_and_question():
     message = "Can the background be transparent? Please add a hat. I might use it on merch later."
     provider = FakeProvider(

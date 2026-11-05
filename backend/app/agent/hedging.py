@@ -335,6 +335,10 @@ _PRICE_CONCESSION = re.compile(
     re.IGNORECASE,
 )
 _LINK = re.compile(r"https?://|www\.", re.IGNORECASE)
+_INTERNAL_LABEL = re.compile(
+    r"usage_rights|client_email|file_formats|sketch_review|clause_ref|price_token|must_mention"
+    r"|\b(?:deliverables|revisions):"
+)
 
 
 def reply_problems(
@@ -367,6 +371,8 @@ def reply_problems(
         problems.append("a discount or free-work promise")
     if _LINK.search(remainder):
         problems.append("a link")
+    if _INTERNAL_LABEL.search(remainder):
+        problems.append("an internal field name")
     return problems
 
 

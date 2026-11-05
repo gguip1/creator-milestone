@@ -4,7 +4,10 @@ Run from backend/:
     uv run --env-file <path to .env> python -m scripts.ai_eval --budget 25 --write-cache
 
 Every HTTP attempt counts against --budget, calls are spaced apart, and the run stops on repeated
-429s. Output shows case names and decisions; client text appears only with --show-replies.
+429s. A model that returns 503 is skipped for the rest of the run, so outages do not spend the
+budget; the chain still falls through to the next model. Cases in --classify-only make no reply
+call and use the code template, so their reply expectations say nothing about model prose. Output
+shows case names and decisions; client text appears only with --show-replies.
 """
 
 import argparse
@@ -19,7 +22,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from app.agent import cached, llm
+from app.agent import cached, intake, llm, scope_guard
 from app.agent.hedging import find_money_mentions, has_hangul, normalize_text
 from app.agent.intake import analyze_intake
 from app.agent.scope_guard import cache_payload, run_live_guard
@@ -43,6 +46,8 @@ class MeteredProvider:
         self.budget = budget
         self.spacing = spacing
         self.calls = 0
+        self.skip_replies = False
+        self.down_models: set[str] = set()
         self.outcomes: dict[str, int] = {}
         self._consecutive_429 = 0
         self._last_call = 0.0
@@ -50,6 +55,10 @@ class MeteredProvider:
     async def generate(
         self, *, model: str, system: str, user: str, response_schema: dict[str, Any]
     ) -> str:
+        if self.skip_replies and "reply_draft_client" in response_schema["properties"]:
+            raise llm.ProviderError("Reply stage skipped", retryable=False)
+        if model in self.down_models:
+            raise llm.ProviderError(f"{model} skipped after a 503", retryable=False)
         if self.calls >= self.budget:
             raise EvalStopped(f"Budget of {self.budget} calls reached")
         wait = self._last_call + self.spacing - time.monotonic()
@@ -63,6 +72,8 @@ class MeteredProvider:
             )
         except llm.ProviderError as exc:
             self._count(f"{model}: {exc.status or 'error'}")
+            if exc.status == 503:
+                self.down_models.add(model)
             self._consecutive_429 = self._consecutive_429 + 1 if exc.status == 429 else 0
             if self._consecutive_429 >= MAX_CONSECUTIVE_429:
                 raise EvalStopped("Repeated 429 responses from the provider") from None
@@ -369,6 +380,17 @@ CASES = [
 ]
 
 
+def used_template(result: Any) -> bool:
+    """True if the reply came from the code template rather than from the model."""
+    openings = (
+        intake._TEMPLATE_TEXT["en"]["thanks"],
+        intake._TEMPLATE_TEXT["ko"]["thanks"],
+        scope_guard._TEMPLATE_TEXT["en"]["thanks"],
+        scope_guard._TEMPLATE_TEXT["ko"]["thanks"],
+    )
+    return result.reply_draft_client.startswith(openings)
+
+
 async def run_case(case: Case, args: argparse.Namespace) -> tuple[Any, int, int]:
     run = None
     if case.kind == "intake":
@@ -378,6 +400,8 @@ async def run_case(case: Case, args: argparse.Namespace) -> tuple[Any, int, int]
             case.message, scope=case.scope or demo_scope(), rate_card=DEMO_RATE_CARD, today=TODAY
         )
         result = run.result
+    if result.source != "live":
+        raise LLMUnavailableError("Only a cached result was available")
     passed = failed = 0
     for name, check in case.checks.items():
         try:
@@ -387,7 +411,7 @@ async def run_case(case: Case, args: argparse.Namespace) -> tuple[Any, int, int]
         passed += ok
         failed += not ok
         print(f"  {'PASS' if ok else 'FAIL'}  {name}")
-    if args.write_cache and failed == 0:
+    if args.write_cache and failed == 0 and not used_template(result):
         if case.name == "intake_demo_message_1":
             cached.write_cache(
                 cached.INTAKE_FILE,
@@ -424,6 +448,7 @@ async def main(args: argparse.Namespace) -> int:
     stopped = None
     for case in cases:
         print(f"\n{case.name}")
+        metered.skip_replies = case.name in (args.classify_only or [])
         try:
             result, passed, failed = await run_case(case, args)
         except EvalStopped as exc:
@@ -436,7 +461,8 @@ async def main(args: argparse.Namespace) -> int:
             continue
         total_passed += passed
         total_failed += failed
-        print(f"  source={result.source} model={result.model_id}")
+        reply_origin = "template" if used_template(result) else "model"
+        print(f"  source={result.source} model={result.model_id} reply={reply_origin}")
         dump[case.name] = result.model_dump(mode="json")
         if args.show_replies:
             print(f"  client: {result.reply_draft_client}")
@@ -456,6 +482,7 @@ if __name__ == "__main__":
     parser.add_argument("--budget", type=int, default=25, help="Maximum live calls this run")
     parser.add_argument("--spacing", type=float, default=5.0, help="Seconds between calls")
     parser.add_argument("--only", nargs="*", help="Case names to run")
+    parser.add_argument("--classify-only", nargs="*", help="Cases that skip the reply call")
     parser.add_argument("--write-cache", action="store_true", help="Record passing demo cases")
     parser.add_argument("--dump", help="Write full results as JSON to this path")
     parser.add_argument("--show-replies", action="store_true", help="Print the reply drafts")
