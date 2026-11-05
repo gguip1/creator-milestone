@@ -115,7 +115,11 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
   const refetch = () => queryClient.invalidateQueries({ queryKey: ["project", project.id] });
   const approve = useProjectMutation(project.id, () => api.approveProposal(p.id));
   const dismiss = useProjectMutation(project.id, () => api.dismissProposal(p.id));
+  const cancelCommission = useProjectMutation(project.id, () => api.cancelProject(project.id));
   const [editing, setEditing] = useState(false);
+  const [explaining, setExplaining] = useState(false);
+  // After both sides agree the recipient is part of the agreed scope, and the backend refuses edits.
+  const locked = ["AGREED", "IN_PROGRESS"].includes(project.status);
   const [copied, setCopied] = useState(false);
   const [fullDraft, setFullDraft] = useState(false);
 
@@ -249,6 +253,33 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
         </div>
       )}
 
+      {explaining && locked && (
+        <div className="space-y-3 border-t border-line bg-paper-deep px-5 py-4 sm:px-8">
+          <p className="font-semibold">The recipient is locked because both of you agreed to scope v{project.scope_version}.</p>
+          <p className="text-[15px] text-muted">
+            The billing email ({p.payload.recipient_email ?? "none"}) is part of that agreement, so it cannot be changed
+            quietly afterwards. If the address is wrong, cancel this commission and start a new one with the right
+            PayPal email; a draft invoice that was never sent is simply left unused. If PayPal only had a temporary
+            problem, use Try again.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="secondary"
+              pending={cancelCommission.isPending}
+              onClick={() => {
+                if (window.confirm("Cancel this commission? You can start a new one afterwards.")) cancelCommission.mutate();
+              }}
+            >
+              Cancel this commission
+            </Button>
+            <Link to="/" className="inline-flex items-center rounded-lg px-4 py-3 font-semibold text-accent-deep underline">
+              Start a new project
+            </Link>
+          </div>
+          <ErrorNote error={cancelCommission.error} />
+        </div>
+      )}
+
       {editing && (
         <EditPanel proposal={p} project={project} onDone={() => { setEditing(false); refetch(); }} />
       )}
@@ -285,9 +316,15 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
         )}
         {failed && (
           <>
-            <Button variant="secondary" icon={<Pencil size={17} aria-hidden />} onClick={() => setEditing(!editing)}>
-              Edit recipient
-            </Button>
+            {locked ? (
+              <Button variant="secondary" icon={<Pencil size={17} aria-hidden />} onClick={() => setExplaining(!explaining)}>
+                Why not edit the recipient?
+              </Button>
+            ) : (
+              <Button variant="secondary" icon={<Pencil size={17} aria-hidden />} onClick={() => setEditing(!editing)}>
+                Edit recipient
+              </Button>
+            )}
             <Button variant="ghost" icon={<RotateCw size={17} aria-hidden />} onClick={() => approve.mutate()}>
               Try again
             </Button>

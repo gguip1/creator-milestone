@@ -304,7 +304,7 @@ async def test_client_approval_writes_snapshot_and_keeps_in_progress(
     view = await api.post(f"/api/c/{project['share_token']}/change-orders/{co_id}/approve")
     assert view["status"] == "IN_PROGRESS"
     assert view["scope_version"] == 2
-    assert view["deliverables"][-1] == "Second outfit (casual hoodie version)"
+    assert view["deliverables"][-1] == "Extra outfit"
 
     with session_factory() as db:
         snapshot = db.query(ScopeSnapshot).filter_by(commission_id=project["id"], version=2).one()

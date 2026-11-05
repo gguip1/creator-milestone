@@ -10,11 +10,12 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router";
 import { ProposalCard } from "../components/ProposalCard";
 import { ActorTag, AppShell, Button, Chip, cx, ErrorNote, Loading, Mono } from "../components/ui";
 import { describeActivity } from "../lib/activity";
-import { api, type ChangeOrder, type Milestone, type Project, type Proposal } from "../lib/api";
+import { api, ApiError, type ChangeOrder, type Milestone, type Project, type Proposal } from "../lib/api";
 import { formatDate, formatMoney, formatTime, percent } from "../lib/format";
 import { copyText, useProject, useProjectMutation } from "../lib/hooks";
 import { paypalStatus } from "../lib/status";
@@ -26,9 +27,71 @@ export function ProjectPage() {
   return (
     <AppShell projectId={id}>
       {query.isPending && <Loading label="Loading project…" />}
-      {query.isError && <ErrorNote error={query.error} />}
+      {query.isError && query.error instanceof ApiError && query.error.status === 404 ? (
+        <MissingProject />
+      ) : (
+        query.isError && <ErrorNote error={query.error} />
+      )}
       {project && <ProjectView project={project} />}
     </AppShell>
+  );
+}
+
+/** The free host restarts and forgets demo data; Judge Mode seeds a new project on demand. */
+function MissingProject() {
+  const navigate = useNavigate();
+  const session = useMutation({
+    mutationFn: api.demoSession,
+    onSuccess: (data) => navigate(`/projects/${data.project.id}`),
+  });
+  return (
+    <div className="py-12">
+      <h1 className="font-display text-[32px]">This demo project is gone</h1>
+      <p className="mt-2 max-w-[40em] text-muted">
+        The free demo server restarts now and then and forgets projects, or this link belongs to another visitor.
+        Nothing was billed. Open your own demo project to continue.
+      </p>
+      <div className="mt-4">
+        <Button pending={session.isPending} onClick={() => session.mutate()}>
+          Open my demo project
+        </Button>
+      </div>
+      <div className="mt-3"><ErrorNote error={session.error} /></div>
+    </div>
+  );
+}
+
+function DemoJumps({ project }: { project: Project }) {
+  const info = useQuery({ queryKey: ["demoInfo"], queryFn: api.demoInfo, staleTime: Infinity });
+  const jump = useProjectMutation(project.id, (target: "deposit_paid" | "sketch_shared") =>
+    api.demoJump(project.id, target),
+  );
+  const fresh = project.invoices.length === 0 && ["DRAFT", "AWAITING_ACCEPTANCE", "AGREED"].includes(project.status);
+  if (!info.data?.judge_mode || !fresh) return null;
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[10px] border border-dashed border-line-strong px-4 py-3 text-[15px]">
+      <span className="font-semibold">Judge shortcuts</span>
+      {(["deposit_paid", "sketch_shared"] as const).map((target) => (
+        <button
+          key={target}
+          type="button"
+          disabled={jump.isPending}
+          onClick={() => jump.mutate(target)}
+          className="font-semibold text-accent-deep underline disabled:opacity-60"
+        >
+          {target === "deposit_paid" ? "Jump to: deposit paid" : "Jump to: sketch shared"}
+        </button>
+      ))}
+      <span className="text-muted">
+        Fills sample terms, then uses a previously paid sandbox invoice. PayPal is asked live; nothing is shown as paid unless PayPal confirms it.
+      </span>
+      {jump.data && (
+        <p role="status" className="basis-full font-semibold">
+          {jump.data.message}
+        </p>
+      )}
+      <ErrorNote error={jump.error} />
+    </div>
   );
 }
 
@@ -77,6 +140,7 @@ function ProjectView({ project }: { project: Project }) {
         </p>
       </div>
 
+      <DemoJumps project={project} />
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-b border-line py-3 md:grid-cols-3 xl:grid-cols-6">
         <Summary label="Deliverable">{project.deliverables.join("; ") || "—"}</Summary>
         <Summary label="Files">{project.file_formats.join(", ") || "—"}</Summary>
@@ -180,7 +244,9 @@ function Milestones({ project }: { project: Project }) {
 
     if (status && invoice) {
       chip = <Chip tone={status.tone} icon={status.icon}>{status.label}</Chip>;
-      detail = `Invoice ${invoice.invoice_number}, billed under scope v${invoice.billed_scope_version}`;
+      detail = invoice.adopted
+        ? `Previously paid sandbox invoice ${invoice.paypal_invoice_id}, confirmed as paid by PayPal just now`
+        : `Invoice ${invoice.invoice_number}, billed under scope v${invoice.billed_scope_version}`;
       if (status.paid) {
         icon = <Check size={19} />;
         tone = "success";

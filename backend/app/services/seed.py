@@ -32,12 +32,18 @@ FOLLOW_UP_MESSAGE = (
 )
 
 
-def ensure_seller(db: Session) -> Seller:
-    """The one demo seller. Her rate card is seeded only when she is first created."""
-    seller = db.scalar(select(Seller).where(Seller.display_name == SELLER_NAME))
+def ensure_seller(db: Session, visitor_id: str | None = None) -> Seller:
+    """Jiwoo, one per Judge Mode visitor (one overall otherwise). The rate card is seeded when
+    she is first created, so a restart that wipes the database is harmless: seeding is on demand."""
+    seller = db.scalar(
+        select(Seller).where(
+            Seller.display_name == SELLER_NAME,
+            Seller.visitor_id.is_(None) if visitor_id is None else Seller.visitor_id == visitor_id,
+        )
+    )
     if seller is not None:
         return seller
-    seller = Seller(display_name=SELLER_NAME)
+    seller = Seller(display_name=SELLER_NAME, visitor_id=visitor_id)
     db.add(seller)
     db.flush()
     _write_rate_card(db, seller)
@@ -68,7 +74,7 @@ def new_commission(db: Session, seller: Seller, **fields) -> Commission:
 
 def seed_demo_project(db: Session, *, visitor_id: str | None = None) -> Commission:
     """A fresh project at intake. Terms are empty because the demo starts by analyzing message 1."""
-    seller = ensure_seller(db)
+    seller = ensure_seller(db, visitor_id)
     return new_commission(db, seller, client_display_name="Demo client", visitor_id=visitor_id)
 
 
@@ -80,12 +86,12 @@ def suggested_recipient(settings: Settings) -> str | None:
 
 
 def reset_demo(db: Session, *, visitor_id: str | None = None) -> Commission:
-    """Wipe this visitor's projects (all of them until Judge Mode scoping exists) and reseed.
+    """Wipe this visitor's projects and reseed. Other visitors are untouched.
 
     Invoices already at PayPal are left alone. They cannot collide with the new project's because
     invoice numbers are built from random ids.
     """
-    seller = ensure_seller(db)
+    seller = ensure_seller(db, visitor_id)
     commissions = db.scalars(
         select(Commission).where(
             Commission.visitor_id.is_(None)

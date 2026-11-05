@@ -3,7 +3,7 @@
 from typing import Any
 
 from fastapi import APIRouter
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agent.rules import propose_change_order, propose_next_step, reconcile
@@ -11,9 +11,11 @@ from app.api.deps import (
     LLM_FAILURES,
     DbDep,
     IntakeDep,
+    LlmGateDep,
     ScopeGuardDep,
     SettingsDep,
     TodayDep,
+    ViewerDep,
     get_commission,
     get_milestone,
     llm_unavailable,
@@ -38,6 +40,7 @@ from app.services.change_orders import (
     sanitize_guard_result,
 )
 from app.services.invoice_sync import mark_viewed
+from app.services.limits import rate_limited
 from app.services.milestones import PlanEntry, deliver_milestone
 from app.services.scope import (
     FIELD_COLUMNS,
@@ -100,30 +103,42 @@ def _scope_changes(body: schemas.ScopeFields) -> dict[str, Any]:
 
 
 @router.post("/analyze", response_model=schemas.IntakeAnalysis)
-async def analyze(body: schemas.AnalyzeIn, analyzer: IntakeDep, today: TodayDep) -> IntakeAnalysis:
+async def analyze(
+    body: schemas.AnalyzeIn, analyzer: IntakeDep, today: TodayDep, gate: LlmGateDep
+) -> IntakeAnalysis:
     try:
-        return await analyzer(body.message, today=body.today or today)
+        return await gate.intake(analyzer, body.message, today=body.today or today)
     except LLM_FAILURES as exc:
         raise llm_unavailable() from exc
 
 
 @router.get("/projects", response_model=list[schemas.ProjectSummaryOut])
-async def list_projects(db: DbDep) -> list[schemas.ProjectSummaryOut]:
-    commissions = db.scalars(select(Commission).order_by(Commission.created_at.desc())).all()
-    return [project_summary(c) for c in commissions]
+async def list_projects(db: DbDep, viewer: ViewerDep) -> list[schemas.ProjectSummaryOut]:
+    query = select(Commission).order_by(Commission.created_at.desc())
+    if viewer.scoped:
+        query = query.where(Commission.visitor_id == viewer.id)
+    return [project_summary(c) for c in db.scalars(query)]
 
 
 @router.post("/projects", response_model=schemas.ProjectOut, status_code=201)
 async def create_project(
-    body: schemas.ProjectCreate, db: DbDep, settings: SettingsDep
+    body: schemas.ProjectCreate, db: DbDep, settings: SettingsDep, viewer: ViewerDep
 ) -> schemas.ProjectOut:
-    seller = ensure_seller(db)
+    if viewer.scoped:
+        owned = db.scalar(
+            select(func.count()).select_from(Commission).where(Commission.visitor_id == viewer.id)
+        )
+        if owned >= settings.limit_projects_per_visitor:
+            raise rate_limited(
+                "This demo keeps a few projects per visitor. Reset the demo to start over.", 3600
+            )
+    seller = ensure_seller(db, viewer.id)
     fields = {
         FIELD_COLUMNS.get(name, name): value
         for name, value in _scope_changes(body).items()
         if value is not None
     }
-    commission = new_commission(db, seller, **fields)
+    commission = new_commission(db, seller, visitor_id=viewer.id, **fields)
     if body.intake:
         _store_intake(db, commission, body.intake)
     db.commit()
@@ -131,17 +146,19 @@ async def create_project(
 
 
 @router.get("/projects/{project_id}", response_model=schemas.ProjectOut)
-async def get_project(project_id: str, db: DbDep, settings: SettingsDep) -> schemas.ProjectOut:
-    commission = get_commission(db, project_id)
+async def get_project(
+    project_id: str, viewer: ViewerDep, db: DbDep, settings: SettingsDep
+) -> schemas.ProjectOut:
+    commission = get_commission(db, project_id, viewer)
     mark_viewed(commission.id)
     return project_out(db, commission, settings)
 
 
 @router.patch("/projects/{project_id}", response_model=schemas.ProjectOut)
 async def patch_project(
-    project_id: str, body: schemas.ProjectPatch, db: DbDep, settings: SettingsDep
+    project_id: str, viewer: ViewerDep, body: schemas.ProjectPatch, db: DbDep, settings: SettingsDep
 ) -> schemas.ProjectOut:
-    commission = get_commission(db, project_id)
+    commission = get_commission(db, project_id, viewer)
     edit_scope(db, commission, _scope_changes(body))
     if body.intake:
         _store_intake(db, commission, body.intake)
@@ -152,9 +169,13 @@ async def patch_project(
 
 @router.put("/projects/{project_id}/milestones", response_model=schemas.ProjectOut)
 async def put_milestones(
-    project_id: str, body: schemas.MilestonePlanIn, db: DbDep, settings: SettingsDep
+    project_id: str,
+    viewer: ViewerDep,
+    body: schemas.MilestonePlanIn,
+    db: DbDep,
+    settings: SettingsDep,
 ) -> schemas.ProjectOut:
-    commission = get_commission(db, project_id)
+    commission = get_commission(db, project_id, viewer)
     edit_plan(
         db,
         commission,
@@ -167,9 +188,13 @@ async def put_milestones(
 
 @router.post("/projects/{project_id}/accept", response_model=schemas.ProjectOut)
 async def accept_project(
-    project_id: str, db: DbDep, settings: SettingsDep, body: schemas.SellerAcceptIn | None = None
+    project_id: str,
+    viewer: ViewerDep,
+    db: DbDep,
+    settings: SettingsDep,
+    body: schemas.SellerAcceptIn | None = None,
 ) -> schemas.ProjectOut:
-    commission = get_commission(db, project_id)
+    commission = get_commission(db, project_id, viewer)
     accept_as_seller(db, commission, body.scope_version if body else None)
     reconcile(db, commission, settings)
     db.commit()
@@ -177,8 +202,10 @@ async def accept_project(
 
 
 @router.post("/projects/{project_id}/cancel", response_model=schemas.ProjectOut)
-async def cancel_project(project_id: str, db: DbDep, settings: SettingsDep) -> schemas.ProjectOut:
-    commission = get_commission(db, project_id)
+async def cancel_project(
+    project_id: str, viewer: ViewerDep, db: DbDep, settings: SettingsDep
+) -> schemas.ProjectOut:
+    commission = get_commission(db, project_id, viewer)
     if any(i.is_active and i.sent_at and not i.paid_seen_at for i in commission.invoices):
         raise conflict(
             "OPEN_INVOICE_EXISTS", "Cancel the unpaid invoice first, then cancel the commission."
@@ -192,9 +219,13 @@ async def cancel_project(project_id: str, db: DbDep, settings: SettingsDep) -> s
 
 @router.post("/projects/{project_id}/revisions", response_model=schemas.ProjectOut)
 async def log_revision(
-    project_id: str, db: DbDep, settings: SettingsDep, body: schemas.RevisionIn | None = None
+    project_id: str,
+    viewer: ViewerDep,
+    db: DbDep,
+    settings: SettingsDep,
+    body: schemas.RevisionIn | None = None,
 ) -> schemas.ProjectOut:
-    commission = get_commission(db, project_id)
+    commission = get_commission(db, project_id, viewer)
     if commission.status not in ACTIVE_STATUSES:
         raise conflict("COMMISSION_NOT_ACTIVE", f"The commission is {commission.status}.")
     commission.revisions_used += body.count if body else 1
@@ -214,13 +245,15 @@ async def log_revision(
 @router.post("/projects/{project_id}/messages", response_model=schemas.FollowUpOut, status_code=201)
 async def post_message(
     project_id: str,
+    viewer: ViewerDep,
     body: schemas.FollowUpIn,
     db: DbDep,
     settings: SettingsDep,
     guard: ScopeGuardDep,
     today: TodayDep,
+    gate: LlmGateDep,
 ) -> schemas.FollowUpOut:
-    commission = get_commission(db, project_id)
+    commission = get_commission(db, project_id, viewer)
     if commission.status not in ACTIVE_STATUSES:
         raise conflict(
             "COMMISSION_NOT_ACTIVE",
@@ -233,7 +266,9 @@ async def post_message(
     db.commit()
 
     try:
-        raw_result = await guard(body.body, scope=scope, rate_card=rate_card, today=today)
+        raw_result = await gate.guard(
+            guard, body.body, scope=scope, rate_card=rate_card, today=today
+        )
     except LLM_FAILURES as exc:
         raise llm_unavailable() from exc
 
@@ -274,9 +309,13 @@ async def post_message(
 
 @router.post("/milestones/{milestone_id}/deliver", response_model=schemas.ProjectOut)
 async def deliver(
-    milestone_id: str, db: DbDep, settings: SettingsDep, body: schemas.DeliverIn | None = None
+    milestone_id: str,
+    viewer: ViewerDep,
+    db: DbDep,
+    settings: SettingsDep,
+    body: schemas.DeliverIn | None = None,
 ) -> schemas.ProjectOut:
-    milestone = get_milestone(db, milestone_id)
+    milestone = get_milestone(db, milestone_id, viewer)
     commission = milestone.commission
     deliver_milestone(
         db, milestone, body.evidence_url if body else None, body.note if body else None
@@ -292,10 +331,10 @@ async def deliver(
     status_code=201,
 )
 async def propose_bill_again(
-    milestone_id: str, db: DbDep, settings: SettingsDep
+    milestone_id: str, db: DbDep, settings: SettingsDep, viewer: ViewerDep
 ) -> schemas.ProposalOut:
     """Bring back a billing card after the seller dismissed it. It still needs approval."""
-    milestone = get_milestone(db, milestone_id)
+    milestone = get_milestone(db, milestone_id, viewer)
     proposal = propose_next_step(db, milestone.commission, milestone)
     db.commit()
     return proposal_out(db, proposal, settings)

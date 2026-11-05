@@ -201,6 +201,7 @@ def wired_app(
     yield
     app.dependency_overrides.clear()
     app.state.session_factory = None
+    app.state.limits = None
 
 
 @pytest.fixture
@@ -266,3 +267,19 @@ async def bill_and_send(api: Api, project_id: str) -> dict[str, Any]:
     project = await api.get(f"/api/projects/{project_id}")
     await api.post(f"/api/proposals/{pending(project, 'SEND_INVOICE')['id']}/approve")
     return await api.get(f"/api/projects/{project_id}")
+
+
+@pytest.fixture
+async def new_visitor() -> AsyncIterator[Callable[[], Api]]:
+    """Another browser: its own cookie jar against the same app."""
+    clients: list[httpx.AsyncClient] = []
+
+    def _make() -> Api:
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        clients.append(client)
+        return Api(client)
+
+    yield _make
+    for client in clients:
+        await client.aclose()

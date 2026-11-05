@@ -71,17 +71,22 @@ def invoice_note(commission: Commission, milestone: Milestone) -> str:
     return f"{what}. Billed under agreed scope v{commission.scope_version}."[:NOTE_LIMIT]
 
 
+def _clause(text: Any) -> str:
+    """One sentence-ready fragment: no stray whitespace or trailing punctuation to double up."""
+    return " ".join(str(text).split()).rstrip(".;,: ")
+
+
 def invoice_terms(snapshot: dict[str, Any]) -> str:
     """Terms of one agreed version, so they travel with the PayPal invoice."""
-    parts = [f"Agreed scope v{snapshot['version']}: {snapshot['title']}."]
-    if snapshot.get("deliverables"):
-        parts.append(f"Deliverables: {'; '.join(snapshot['deliverables'])}.")
-    if snapshot.get("file_formats"):
-        parts.append(f"File formats: {', '.join(snapshot['file_formats'])}.")
+    parts = [f"Agreed scope v{snapshot['version']}: {_clause(snapshot['title'])}."]
+    if deliverables := [c for c in map(_clause, snapshot.get("deliverables") or []) if c]:
+        parts.append(f"Deliverables: {'; '.join(deliverables)}.")
+    if formats := [c for c in map(_clause, snapshot.get("file_formats") or []) if c]:
+        parts.append(f"File formats: {', '.join(formats)}.")
     if snapshot.get("revisions_included") is not None:
         parts.append(f"Revisions included: {snapshot['revisions_included']}.")
-    if snapshot.get("usage_rights"):
-        parts.append(f"Usage rights: {snapshot['usage_rights']}.")
+    if usage := _clause(snapshot.get("usage_rights") or ""):
+        parts.append(f"Usage rights: {usage}.")
     if snapshot.get("deadline_date"):
         parts.append(f"Delivery by: {snapshot['deadline_date']}.")
     return " ".join(parts)[:NOTE_LIMIT]

@@ -78,3 +78,29 @@ cd frontend && npm run build
 ## License
 
 [MIT](LICENSE)
+
+## Judge Mode (the hosted demo)
+
+`JUDGE_MODE=true` turns the app into the public demo:
+
+- **Per-visitor projects.** Each browser gets a signed, HttpOnly, SameSite=Lax cookie and its own seeded project, rate card, and activity. `POST /api/demo/reset` resets only that visitor. Another visitor's project, milestone, invoice, or proposal answers 404. The client page (`/c/:token`) stays reachable by its unguessable token.
+- **Seeded on demand.** Nothing is pre-seeded, so a restart or redeploy (free hosts lose local files) is harmless: `GET /api/demo/session` seeds a project for a visitor who has none, and the UI offers "Open my demo project" when a link points at a project that is gone.
+- **Sandbox only.** The recipient is preset to the configured sandbox buyer, and the recipient allowlist is enforced when billing.
+- **Skip-ahead links** ("Jump to: deposit paid", "Jump to: sketch shared") never fake PayPal state. They fill sample terms and record both acceptances, then adopt the real, already paid sandbox invoice named by `DEMO_PAID_INVOICE_ID`: the backend asks PayPal live and shows "Paid via PayPal" only if PayPal returns `PAID` with this deposit's amount. Otherwise the project stays in its plain state and the normal billing card still works.
+- **Limits** (in memory, one instance): per-visitor and per-IP request rates, per-visitor and per-IP AI rates, a per-visitor and a **global daily cap on AI requests** (past the cap the two demo messages are served from recorded analysis, anything else gets a clear 503), invoice creation per visitor per hour and globally per day, and a 64 KB request-body cap on top of per-field length limits. Answers are `429` (or `503` for the global AI cap) in the usual `{code, message, request_id}` shape. The client IP is taken from the entry our own proxy appended to `X-Forwarded-For` (`TRUSTED_PROXY_HOPS`, default 1), never from entries a client put in front, and the global caps are the backstop if that is still gamed. Defaults live in `app/config.py` (`LIMIT_*`).
+
+### Settings for the hosted instance
+
+| Setting | Purpose |
+|---|---|
+| `JUDGE_MODE=true` | Turns all of the above on |
+| `RECIPIENT_ALLOWLIST`, `PAYPAL_SANDBOX_BUYER_EMAIL` | Sandbox buyer(s) that may be billed; the first preset |
+| `SESSION_SECRET` | Signs the visitor cookie. Optional: blank generates a random secret each boot, so a restart only gives visitors a fresh project |
+| `DEMO_BUYER_EMAIL`, `DEMO_BUYER_PASSWORD` | Display-only sandbox buyer login in the banner. Set in the host dashboard, never committed. Unset, the banner says the login is in the submission's testing instructions |
+| `DEMO_PAID_INVOICE_ID` | A real paid sandbox invoice for the deposit shortcut (amount must equal the deposit, $90.00 of the $300 sample) |
+
+### Cold start
+
+Render's free instance sleeps after 15 idle minutes and takes about a minute to wake; it also loses local files on restart. There is deliberately no keep-alive ping, which the host's terms do not allow. While the server wakes, the UI shows a calm "waking up" notice and retries by itself for about 95 seconds instead of showing an error. Open the URL once before judging.
+
+The database schema comes from `create_all` and there are no migrations: after pulling this change, delete any local `creatormilestone.db`.

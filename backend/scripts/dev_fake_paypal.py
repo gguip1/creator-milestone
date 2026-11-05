@@ -1,7 +1,7 @@
 """Dev-only runner: the real app with an in-memory fake PayPal, so the UI can be clicked through
 every state (including paid) without credentials. Nothing here runs unless you invoke it:
 
-    uv run python -m scripts.dev_fake_paypal [--port 8000]
+    uv run python -m scripts.dev_fake_paypal [--port 8000] [--judge]
 
 It never reads .env, never calls PayPal or the AI provider (the two demo messages return their
 cached analyses), and keeps data in a temp SQLite file that is deleted on exit.
@@ -32,7 +32,14 @@ from tests.fake_paypal import FakePayPal
 dev = APIRouter(prefix="/dev")
 
 
-def build(fake: FakePayPal, database_url: str) -> Settings:
+def prepaid_invoice(fake: FakePayPal) -> str:
+    """Stands in for the real paid invoice that DEMO_PAID_INVOICE_ID names in production."""
+    invoice = fake.add_foreign_invoice("PRIOR-RUN-1", "90.00", "client@example.com")
+    fake.set_status(invoice["id"], "PAID")
+    return invoice["id"]
+
+
+def build(fake: FakePayPal, database_url: str, *, judge: bool = False) -> Settings:
     # _env_file=None and explicit values: neither the shell nor backend/.env can enable real calls.
     settings = Settings(
         _env_file=None,
@@ -44,8 +51,12 @@ def build(fake: FakePayPal, database_url: str) -> Settings:
         llm_model="",
         llm_api_key=SecretStr(""),
         database_url=database_url,
-        judge_mode=False,
-        recipient_allowlist=[],
+        judge_mode=judge,
+        recipient_allowlist=["client@example.com"] if judge else [],
+        demo_buyer_email="client@example.com" if judge else "",
+        demo_paid_invoice_id=prepaid_invoice(fake) if judge else "",
+        limit_writes_per_minute_visitor=600,
+        limit_writes_per_minute_ip=2000,
         reminder_threshold_minutes=60,
         poll_interval_seconds=5,
     )
@@ -91,11 +102,12 @@ def register_dev_routes(fake: FakePayPal) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--judge", action="store_true", help="run with JUDGE_MODE=true")
     args = parser.parse_args()
     fake = FakePayPal()
     workdir = Path(tempfile.mkdtemp(prefix="creatormilestone-fake-"))
     try:
-        build(fake, f"sqlite:///{workdir / 'dev.db'}")
+        build(fake, f"sqlite:///{workdir / 'dev.db'}", judge=args.judge)
         register_dev_routes(fake)
         print(f"Fake PayPal dev server on http://127.0.0.1:{args.port} (data: {workdir})")
         uvicorn.run(app, host="127.0.0.1", port=args.port)

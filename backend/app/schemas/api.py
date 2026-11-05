@@ -13,6 +13,10 @@ MAX_MESSAGE_CHARS = 5000
 MinorUnits = Annotated[StrictInt, Field(ge=1)]
 Quantity = Annotated[StrictInt, Field(ge=1)]
 MessageBody = Annotated[str, Field(min_length=1, max_length=MAX_MESSAGE_CHARS)]
+# Every free-text input has a bound; MAX_BODY_BYTES in the middleware is the catch-all.
+ListItem = Annotated[str, Field(max_length=300)]
+ItemList = Annotated[list[ListItem], Field(max_length=30)]
+ObjectId = Annotated[str, Field(max_length=64)]
 
 
 class InputModel(BaseModel):
@@ -44,16 +48,16 @@ class IntakeRecord(InputModel):
 
 class ScopeFields(InputModel):
     title: str | None = Field(default=None, max_length=200)
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=4000)
     client_display_name: str | None = Field(default=None, max_length=120)
     client_email: str | None = Field(default=None, max_length=254)
     source_language: str | None = Field(default=None, max_length=16)
     currency_code: str | None = Field(default=None, max_length=3)
-    deliverables: list[str] | None = None
-    file_formats: list[str] | None = None
+    deliverables: ItemList | None = None
+    file_formats: ItemList | None = None
     revisions_included: Annotated[StrictInt, Field(ge=0)] | None = None
     deadline_date: date | None = None
-    usage_rights: str | None = None
+    usage_rights: str | None = Field(default=None, max_length=2000)
     total_minor_units: MinorUnits | None = None
 
 
@@ -72,7 +76,7 @@ class MilestonePlanEntry(InputModel):
 
 
 class MilestonePlanIn(InputModel):
-    milestones: list[MilestonePlanEntry] = Field(min_length=1)
+    milestones: list[MilestonePlanEntry] = Field(min_length=1, max_length=12)
 
 
 class SellerAcceptIn(InputModel):
@@ -93,8 +97,8 @@ class RevisionIn(InputModel):
 
 
 class DeliverIn(InputModel):
-    evidence_url: str | None = None
-    note: str | None = None
+    evidence_url: str | None = Field(default=None, max_length=2000)
+    note: str | None = Field(default=None, max_length=2000)
 
     @field_validator("evidence_url")
     @classmethod
@@ -106,7 +110,7 @@ class DeliverIn(InputModel):
 
 
 class ChangeOrderLineEdit(InputModel):
-    id: str
+    id: ObjectId
     quantity: Quantity | None = None
     unit_price_minor_units: MinorUnits | None = None
 
@@ -116,8 +120,8 @@ class ProposalPatch(InputModel):
 
     note: str | None = Field(default=None, max_length=4000)
     subject: str | None = Field(default=None, max_length=200)
-    lines: list[ChangeOrderLineEdit] | None = None
-    remove_line_ids: list[str] | None = None
+    lines: list[ChangeOrderLineEdit] | None = Field(default=None, max_length=30)
+    remove_line_ids: list[ObjectId] | None = Field(default=None, max_length=30)
 
 
 class RateCardItemIn(InputModel):
@@ -129,7 +133,7 @@ class RateCardItemIn(InputModel):
 
 
 class RateCardIn(InputModel):
-    items: list[RateCardItemIn]
+    items: list[RateCardItemIn] = Field(max_length=50)
 
 
 # --- Responses ---
@@ -168,6 +172,8 @@ class InvoiceOut(BaseModel):
     reminders_sent: int
     sent_at: datetime | None
     paid_seen_at: datetime | None
+    # A previously paid sandbox invoice adopted by a Judge Mode shortcut, confirmed by a live GET.
+    adopted: bool = False
 
 
 class MilestoneOut(BaseModel):
@@ -345,11 +351,18 @@ class ClientMilestoneOut(BaseModel):
     can_approve: bool
 
 
+class ClientNotBilledOut(BaseModel):
+    """What the client asked for that is not charged. Nothing internal: no quote, no clause."""
+
+    request_summary: str
+
+
 class ClientChangeOrderOut(BaseModel):
     id: str
     number: int
     status: str
     lines: list[ChangeOrderLineOut]
+    not_billed: list[ClientNotBilledOut] = []
     total_minor_units: int
     can_decide: bool
 
@@ -365,6 +378,28 @@ class ClientViewOut(ScopeOut):
 class ExampleMessages(BaseModel):
     intake: str
     follow_up: str
+
+
+class DemoJumpIn(InputModel):
+    project_id: ObjectId
+    target: Literal["deposit_paid", "sketch_shared"]
+
+
+class DemoJumpOut(BaseModel):
+    applied: bool
+    message: str
+    project: ProjectOut
+
+
+class BuyerLoginOut(BaseModel):
+    email: str | None
+    password: str | None
+
+
+class DemoInfoOut(BaseModel):
+    judge_mode: bool
+    buyer_login: BuyerLoginOut
+    paid_invoice_configured: bool
 
 
 class DemoResetOut(BaseModel):

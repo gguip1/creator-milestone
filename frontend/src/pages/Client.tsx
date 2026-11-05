@@ -146,6 +146,15 @@ function ChangeOrderCard({
               <Mono className="text-[17px]">{formatMoney(line.amount_minor_units, view.currency_code)}</Mono>
             </li>
           ))}
+          {co.not_billed.map((item) => (
+            <li key={item.request_summary} className="flex items-start justify-between gap-4 border-b border-line py-3">
+              <div>
+                <p className="text-[17px] font-semibold">{item.request_summary}</p>
+                <p className="text-[15px] text-muted">Not billed. Nothing is charged for this request.</p>
+              </div>
+              <span className="shrink-0 text-[17px] font-semibold text-muted">Not billed</span>
+            </li>
+          ))}
         </ul>
         <p className="flex justify-between border-t-2 border-ink pt-3 text-[18px] font-semibold">
           Total <Mono>{formatMoney(co.total_minor_units, view.currency_code)}</Mono>

@@ -17,9 +17,15 @@ from starlette.middleware.base import RequestResponseEndpoint
 from app.api.errors import error_response
 from app.db import session_factory_for
 from app.models import IdempotencyRecord, utcnow
+from app.services.limits import MINUTE, limits_for
+from app.services.visitors import client_ip, read_cookie, settings_for
 
 WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 MAX_KEY_LENGTH = 128
+# Field limits bound each text input; this bounds the whole body, whatever the endpoint.
+MAX_BODY_BYTES = 64 * 1024
+# Not limited here: liveness, and PayPal's own signed callbacks.
+UNLIMITED_PATHS = ("/api/health", "/api/webhooks/paypal")
 # A record still unfinished after this long belongs to a crashed request.
 IN_PROGRESS_TTL = timedelta(minutes=5)
 # Not writes in the sense of this rule: stateless analysis, and a read-through to PayPal that
@@ -131,8 +137,54 @@ async def _run_idempotent(request: Request, call_next: RequestResponseEndpoint) 
     )
 
 
+def _throttle(request: Request) -> Response | None:
+    """Judge Mode request-rate limits, per visitor and per IP. Spend caps live next to the spend."""
+    path = request.url.path
+    if not path.startswith("/api/") or path in UNLIMITED_PATHS:
+        return None
+    settings = settings_for(request.app)
+    if not settings.judge_mode:
+        return None
+    limits = limits_for(request.app)
+    ip = client_ip(request, settings)
+    if request.method in WRITE_METHODS:
+        visitor = read_cookie(request, settings)
+        allowed = limits.allow(f"w:ip:{ip}", settings.limit_writes_per_minute_ip, MINUTE) and (
+            visitor is None
+            or limits.allow(f"w:v:{visitor}", settings.limit_writes_per_minute_visitor, MINUTE)
+        )
+    else:
+        allowed = limits.allow(f"r:ip:{ip}", settings.limit_reads_per_minute_ip, MINUTE)
+    if allowed:
+        return None
+    return error_response(
+        request,
+        429,
+        "RATE_LIMITED",
+        "Too many requests. Wait a moment and try again.",
+        {"retry_after_seconds": 30},
+    )
+
+
+async def _too_large(request: Request) -> Response | None:
+    if request.method not in WRITE_METHODS or not request.url.path.startswith("/api/"):
+        return None
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit():
+        too_big = int(declared) > MAX_BODY_BYTES
+    else:
+        too_big = len(await request.body()) > MAX_BODY_BYTES
+    if not too_big:
+        return None
+    return error_response(request, 413, "PAYLOAD_TOO_LARGE", "That request is too large.")
+
+
 async def request_context(request: Request, call_next: RequestResponseEndpoint) -> Response:
     request.state.request_id = uuid.uuid4().hex
+    early = await _too_large(request) or _throttle(request)
+    if early is not None:
+        early.headers["X-Request-Id"] = request.state.request_id
+        return early
     if _requires_key(request):
         response = await _run_idempotent(request, call_next)
     else:
