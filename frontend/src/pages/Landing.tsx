@@ -93,11 +93,11 @@ export function Landing() {
           <div>
             <Eyebrow>For commission artists with clients abroad</Eyebrow>
             <h1 className="font-display mt-5 text-[40px] sm:text-[60px] sm:leading-[60px]">
-              Agree the scope. Bill each stage. Price the extras.
+              One more change? Check it against what you agreed.
             </h1>
             <p className="mt-8 max-w-[34em] text-[17px] leading-7 text-muted">
-              CreatorMilestone turns a client's chat message into a written scope, invoices each stage through
-              PayPal, and checks every later request against what you agreed. Nothing is sent until you approve it.
+              The AI checks the request against the scope you both agreed to, prices the extras from your rate card,
+              and turns what you both approve into a PayPal invoice. Nothing is sent until you approve it.
             </p>
             {hasProgress && existing ? (
               <div className="mt-8">

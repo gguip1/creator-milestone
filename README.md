@@ -1,6 +1,8 @@
 # CreatorMilestone
 
-**An AI back office for independent artists who take commissions from clients abroad: it turns a messy client chat into an agreed scope, catches scope creep against that agreement, and bills each stage with PayPal invoices that you approve.**
+**When a client asks for one more change, CreatorMilestone's AI checks the request against the scope both sides agreed to, prices the extras from the artist's rate card, and turns what both approve into a PayPal invoice.**
+
+It is a back office for independent artists who take commissions from clients abroad: it also turns a messy client chat into a scope both sides accept, and bills each stage with PayPal invoices that the artist approves.
 
 **Live demo (PayPal sandbox only, no real money): <https://creator-milestone.onrender.com>**
 
@@ -20,11 +22,11 @@ The demo makes real calls to an AI service. If that free tier is exhausted or un
 
 ## The problem
 
-Independent digital artists (illustrators, character designers, VTuber asset makers) often work with clients in another country and language. Three things go wrong:
+Commission artists already write terms of service to head off "just one more change". Published terms and guides cover the same ground again and again: revision limits ("one major revision before line art, then minor only"), extra fees for additions (for example $15 per extra revision), commercial use priced separately (1.5x to 2x the base price), and a deposit before work starts. A guide to commission terms names scope creep, ghosting, chargebacks, and surprise usage such as merchandise as the problems those terms exist to prevent. Sources: [Don Corgi](https://doncorgi.com/blog/art-commission-terms-of-service/), [Artists Aware](https://artistsaware.com/art-commissions/sample-tos-detailed/), and artists' own pages such as [cjkkjh](https://www.cjkkjh.com/commissions-terms-and-conditions) and [tapirclip](https://tapirclip.substack.com/p/tos). More, with caveats, in [docs/problem-research.md](docs/problem-research.md).
 
-- **Vague requests.** Scope, revisions, usage rights, and payment terms stay unclear until work has started.
-- **Scope creep.** The client adds "one more outfit" or "one more pass on the face", and the artist works for free or avoids the awkward conversation.
-- **Chasing each payment** by hand, stage by stage.
+What this shows: the structure we model (deposit, staged payments, revision limits, priced extras, a separate license) is how artists already work. What it leaves open: those terms sit in a document the client may not read, while the actual agreement happens in a chat, often across languages, and enforcement happens by message. Korean artists on public posts also describe friction in taking commissions directly from overseas clients.
+
+**Our hypothesis, not a finding:** artists would use a tool that checks a later request against the terms both sides agreed to and prices the extras. We did not interview artists and have no usage or willingness-to-pay data. Scope creep may not be the top pain either (the same sources rank ghosting, chargebacks, and scams alongside it, and this tool prevents none of those), and for very small commissions the extra steps may not be worth it. Existing platforms such as VGen already offer commission workflows (see How this differs).
 
 CreatorMilestone is built around one seller (the artist) and one client at a time. It is not a marketplace and not escrow.
 
@@ -82,6 +84,14 @@ The app calls Google's Gemini API from the backend. Defaults: `gemini-3.5-flash-
 3. Classifying a follow-up message against the agreed scope, and drafting the reply.
 
 The model gets no tools and no credentials. Client text is passed as marked, untrusted input. Whatever it returns is validated against a schema and then checked again by deterministic rules (for example: a quote that is not in the message is dropped and its field becomes unknown; a hedged quote such as "maybe two rounds" is forced to needs-confirmation whatever the model said; reply drafts are checked for stray prices). If the reply drafts fail checks, the app falls back to code templates.
+
+## Who does what
+
+| Step | AI (Gemini) | Rules (code) | People |
+|---|---|---|---|
+| Read the client chat into scope fields with quotes | Reads and drafts the fields, the clarifying reply, and the translation | Verifies each quote is in the message, forces hedged wording to needs-confirmation, validates the schema | The artist reviews and edits every field; both sides accept |
+| Check a later request against the agreement | Classifies each request, cites the clause, picks a rate-card code and quantity, drafts the reply | Computes every amount from the rate card; drops quotes that are not in the message | The artist reviews the change order; the client approves it |
+| Invoice and payment | Nothing | Proposes the invoice, validates recipient, amount and scope version, calls PayPal, reads status back | The artist approves creating and sending; the buyer pays |
 
 ## What the AI can and cannot do with money
 
@@ -211,6 +221,7 @@ The whole project was created during the hackathon period: the git history start
 - **PayPal:** Invoicing v2 REST API and OAuth2, sandbox.
 - **AI in the product:** Google Gemini API (`gemini-3.5-flash-lite`, fallback `gemini-3.1-flash-lite`) for message analysis, reply drafts, and Scope Guard classification.
 - **AI used to build it:** Claude Code (Anthropic models) wrote most of the code and tests; the git history credits it as co-author on 30 commits. Codex (OpenAI) was also used and is credited on one commit. Orca, a multi-agent IDE, coordinated these agents.
+- **AI-generated narration:** the demo video's voice-over is generated with Google's Gemini text-to-speech from the script in `docs/narration.txt`; it is not a human voice, and the video says so.
 - **AI-generated sample art:** the three demo images in `design/assets/demo-art/` were generated with OpenAI's built-in image generation tool and are AI-generated sample artwork. Prompts are in that folder's README.
 - **Design:** the UI was designed in Pencil (`design/creator-milestone.pen`) with exports in `design/screenshots/`.
 - **Hosting and CI:** Render (Docker, free plan), GitHub Actions (`.github/workflows/ci.yml`).
