@@ -53,6 +53,12 @@ class FakePayPal:
     def timeout_next(self, operation: str, *, apply_first: bool = False) -> None:
         self.faults.setdefault(operation, []).append(Fault(timeout=True, apply_first=apply_first))
 
+    def miss_search_next(self) -> None:
+        """Search answers empty once even if the invoice exists, like an index that lags."""
+        self.faults.setdefault("search", []).append(
+            Fault(response=httpx.Response(200, json={"items": []}))
+        )
+
     def buyer_pays(self, invoice_id: str) -> None:
         self.invoices[invoice_id]["status"] = "PAID"
 

@@ -96,7 +96,7 @@ def reconcile_active(db: Session, settings: Settings) -> None:
 async def poll_forever(
     session_factory: sessionmaker[Session], paypal: PayPalClient, settings: Settings
 ) -> None:
-    last_sweep = 0.0
+    last_sweep = float("-inf")
     while True:
         await asyncio.sleep(settings.poll_interval_seconds)
         now = time.monotonic()
@@ -110,6 +110,6 @@ async def poll_forever(
                     reconcile_active(db, settings)
             if full_sweep:
                 last_sweep = now
-        except Exception:
+        except Exception as exc:
             # The loop must outlive any single bad cycle. Log the type only: no PII or payloads.
-            logger.exception("Invoice poll cycle failed")
+            logger.error("Invoice poll cycle failed: %s", type(exc).__name__)

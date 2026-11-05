@@ -1,11 +1,12 @@
 """Invoice service against verified PayPal behavior (docs/paypal-test-log.md)."""
 
+import asyncio
 from datetime import timedelta
 
 import pytest
 
 from app.models import Commission, PaypalInvoice, Proposal, utcnow
-from app.services.invoice_sync import poll_once, reconcile_active
+from app.services.invoice_sync import poll_forever, poll_once, reconcile_active
 from app.services.paypal_status import STATUS_MAP, describe_status
 from tests.conftest import BUYER, bill_and_send, pending
 
@@ -71,20 +72,34 @@ async def test_duplicate_number_on_retry_adopts_instead_of_double_billing(
 ):
     project = await make_agreed()
     bill = pending(project, "BILL_MILESTONE")
-    # The first attempt reached PayPal, and search also failed, so the card ended up FAILED.
+    # The first attempt reached PayPal, and the recovery search also failed.
     fake_paypal.timeout_next("create", apply_first=True)
     fake_paypal.timeout_next("search")
     await api.post(f"/api/proposals/{bill['id']}/approve", expect=504)
     assert len(fake_paypal.invoices) == 1
 
-    # This time search misses it once more (index lag): the create gets the verified 422.
-    fake_paypal.faults.setdefault("search", [])
-    project = await api.get(f"/api/projects/{project['id']}")
+    # The retry's search misses it (index lag), so create gets the verified 422, then adopts.
+    fake_paypal.miss_search_next()
+    calls_before = len(fake_paypal.calls)
     retried = await api.post(f"/api/proposals/{bill['id']}/approve")
+
     assert retried["status"] == "EXECUTED"
+    assert fake_paypal.calls[calls_before:] == ["search", "create", "search", "get"]
     assert len(fake_paypal.invoices) == 1
     project = await api.get(f"/api/projects/{project['id']}")
     assert project["invoices"][0]["paypal_invoice_id"] in fake_paypal.invoices
+
+
+async def test_duplicate_with_nothing_found_fails_and_stays_retryable(
+    api, fake_paypal, make_agreed
+):
+    project = await make_agreed()
+    bill = pending(project, "BILL_MILESTONE")
+    fake_paypal.fail_next("create", 422, "UNPROCESSABLE_ENTITY", "DUPLICATE_INVOICE_NUMBER")
+    fake_paypal.miss_search_next()
+    error = await api.post(f"/api/proposals/{bill['id']}/approve", expect=422)
+    assert error["details"]["proposal_status"] == "FAILED"
+    assert (await api.post(f"/api/proposals/{bill['id']}/approve"))["status"] == "EXECUTED"
 
 
 async def test_duplicate_error_on_first_create_is_recovered_by_search(
@@ -203,6 +218,22 @@ async def test_403_pauses_billing_until_a_retry_succeeds(api, fake_paypal, make_
     project = await api.get(f"/api/projects/{first['id']}")
     assert project["billing_disabled_code"] is None
     assert (await api.post(f"/api/proposals/{other['id']}/approve"))["status"] == "EXECUTED"
+
+
+async def test_pause_ends_when_the_card_that_could_lift_it_is_dismissed(
+    api, fake_paypal, make_agreed
+):
+    first = await make_agreed()
+    second = await make_agreed()
+    bill = pending(first, "BILL_MILESTONE")
+    fake_paypal.fail_next("create", 403, "NOT_AUTHORIZED")
+    await api.post(f"/api/proposals/{bill['id']}/approve", expect=403)
+    await api.post(f"/api/proposals/{bill['id']}/dismiss")
+
+    project = await api.get(f"/api/projects/{second['id']}")
+    assert project["billing_disabled_code"] is None
+    card = pending(project, "BILL_MILESTONE")
+    assert (await api.post(f"/api/proposals/{card['id']}/approve"))["status"] == "EXECUTED"
 
 
 async def test_send_stores_payer_link_from_the_single_link_object(api, fake_paypal, make_agreed):
@@ -352,12 +383,22 @@ async def test_cancelled_outside_our_app_reopens_the_milestone(api, fake_paypal,
     assert pending(project, "BILL_MILESTONE")
 
 
-async def test_refresh_needs_a_created_invoice_and_maps_errors(api, fake_paypal, make_agreed):
+async def test_refresh_maps_paypal_errors(api, fake_paypal, make_agreed):
     project = await bill_and_send(api, (await make_agreed())["id"])
     [invoice] = project["invoices"]
     fake_paypal.timeout_next("get")
     error = await api.post(f"/api/invoices/{invoice['id']}/refresh", expect=504)
     assert error["code"] == "PAYPAL_TIMEOUT"
+
+
+async def test_refresh_needs_an_invoice_that_exists_at_paypal(api, fake_paypal, make_agreed):
+    project = await make_agreed()
+    bill = pending(project, "BILL_MILESTONE")
+    fake_paypal.fail_next("create", 500, "INTERNAL_SERVER_ERROR")
+    await api.post(f"/api/proposals/{bill['id']}/approve", expect=502)
+    project = await api.get(f"/api/projects/{project['id']}")
+    error = await api.post(f"/api/invoices/{project['invoices'][0]['id']}/refresh", expect=422)
+    assert error["code"] == "INVOICE_NOT_CREATED"
 
 
 async def test_refresh_needs_no_idempotency_key(api, fake_paypal, make_agreed):
@@ -562,3 +603,40 @@ async def test_invoices_are_stored_with_commission_links(api, make_agreed, sessi
     with session_factory() as db:
         commission = db.get(Commission, project["id"])
         assert [i.milestone.title for i in commission.invoices] == ["Deposit"]
+
+
+async def test_poll_loop_settles_paid_invoices_on_its_own(
+    api, fake_paypal, make_agreed, session_factory, settings
+):
+    project = await bill_and_send(api, (await make_agreed())["id"])
+    fake_paypal.buyer_pays(project["invoices"][0]["paypal_invoice_id"])
+    settings.poll_interval_seconds = 0
+
+    task = asyncio.create_task(poll_forever(session_factory, fake_paypal.client(), settings))
+    try:
+        async with asyncio.timeout(5):
+            while True:
+                await asyncio.sleep(0.01)
+                with session_factory() as db:
+                    if db.get(PaypalInvoice, project["invoices"][0]["id"]).paid_seen_at:
+                        break
+    finally:
+        task.cancel()
+    project = await api.get(f"/api/projects/{project['id']}")
+    assert project["milestones"][0]["workflow_state"] == "SETTLED"
+
+
+async def test_poll_loop_survives_a_bad_cycle(session_factory, fake_paypal, settings, monkeypatch):
+    calls = []
+
+    async def exploding_poll(*args, **kwargs):
+        calls.append(1)
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("app.services.invoice_sync.poll_once", exploding_poll)
+    settings.poll_interval_seconds = 0
+    task = asyncio.create_task(poll_forever(session_factory, fake_paypal.client(), settings))
+    await asyncio.sleep(0.05)
+    assert not task.done()
+    task.cancel()
+    assert calls

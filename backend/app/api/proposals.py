@@ -33,7 +33,7 @@ async def dismiss(proposal_id: str, db: DbDep, settings: SettingsDep) -> schemas
 async def patch_proposal(
     proposal_id: str, body: schemas.ProposalPatch, db: DbDep, settings: SettingsDep
 ) -> schemas.ProposalOut:
-    changes = body.model_dump(exclude_unset=True)
+    changes = body.model_dump(exclude_unset=True, exclude_none=True)
     if not changes:
         raise invalid("NOTHING_TO_EDIT", "Send at least one field to edit.")
     proposal = edit_proposal(db, get_proposal(db, proposal_id), changes, settings)

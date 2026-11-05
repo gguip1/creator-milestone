@@ -6,16 +6,19 @@ compared against our own rows, so a proposal cannot bill anything the backend di
 
 from dataclasses import dataclass, field
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.models import ChangeOrder, Commission, Milestone, PaypalInvoice, Proposal
+from app.models.entities import Seller
 from app.models.enums import (
     ChangeOrderStatus,
     CommissionStatus,
     MilestoneKind,
     MilestoneState,
     ProposalKind,
+    ProposalStatus,
 )
 from app.services.invoices import (
     AWAITING_PAYMENT_STATUSES,
@@ -191,6 +194,28 @@ def _check_invoice_action(
     return blockers
 
 
+def billing_paused_code(db: Session, seller: Seller) -> str | None:
+    """The 403 pause lasts while a failed card can still re-check it.
+
+    Without that card (dismissed or stale) nothing could ever lift the pause, so the next
+    approval is allowed through and PayPal answers for itself.
+    """
+    code = seller.billing_disabled_code
+    if code is None:
+        return None
+    retry_card = db.scalar(
+        select(Proposal.id)
+        .join(Commission, Proposal.commission_id == Commission.id)
+        .where(
+            Commission.seller_id == seller.id,
+            Proposal.status == ProposalStatus.FAILED,
+            Proposal.error_code == code,
+        )
+        .limit(1)
+    )
+    return code if retry_card else None
+
+
 def validate_proposal(
     db: Session, proposal: Proposal, commission: Commission, settings: Settings
 ) -> Verdict:
@@ -208,7 +233,7 @@ def validate_proposal(
         blockers += _check_invoice_action(proposal, commission, target, settings)
 
     if proposal.kind in PAYPAL_KINDS:
-        disabled = commission.seller.billing_disabled_code
+        disabled = billing_paused_code(db, commission.seller)
         # Retrying the card that hit the 403 is how the seller re-checks the permission.
         if disabled and proposal.error_code != disabled:
             blockers.append(

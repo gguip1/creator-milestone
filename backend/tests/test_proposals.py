@@ -4,6 +4,7 @@ import asyncio
 
 from sqlalchemy import select
 
+from app.agent.executor import approve_proposal
 from app.models import Commission, Proposal
 from tests.conftest import BUYER, pending
 
@@ -19,11 +20,38 @@ async def test_concurrent_approvals_make_one_paypal_create(api, fake_paypal, mak
 
     assert fake_paypal.count("create") == 1
     assert len(fake_paypal.invoices) == 1
-    assert {r["status"] for r in responses} <= {"APPROVED", "EXECUTED"}
-    assert "EXECUTED" in {r["status"] for r in responses}
+    # Both states seen means the losers arrived while the winner was still inside PayPal.
+    assert {r["status"] for r in responses} == {"APPROVED", "EXECUTED"}
     project = await api.get(f"/api/projects/{project['id']}")
     assert len(project["invoices"]) == 1
     assert pending(project, "SEND_INVOICE")
+
+
+async def test_atomic_claim_stops_approvals_that_all_read_pending(
+    make_agreed, fake_paypal, session_factory, settings
+):
+    """Models another worker: every session read PENDING before anyone claimed it."""
+    project = await make_agreed()
+    bill_id = pending(project, "BILL_MILESTONE")["id"]
+    sessions = [session_factory() for _ in range(4)]
+    try:
+        cards = [db.get(Proposal, bill_id) for db in sessions]
+        assert {card.status for card in cards} == {"PENDING"}
+        fake_paypal.create_delay = 0.05
+        client = fake_paypal.client()
+        results = await asyncio.gather(
+            *(
+                approve_proposal(db, card, client, settings)
+                for db, card in zip(sessions, cards, strict=True)
+            )
+        )
+        assert fake_paypal.count("create") == 1
+        statuses = [r.status for r in results]
+        assert statuses.count("EXECUTED") == 1
+        assert statuses.count("APPROVED") == 3
+    finally:
+        for db in sessions:
+            db.close()
 
 
 async def test_concurrent_send_approvals_send_once(api, fake_paypal, make_agreed):
@@ -311,3 +339,29 @@ async def test_no_duplicate_active_invoice_per_milestone(
     error = await api.post(f"/api/proposals/{duplicate_id}/approve", expect=422)
     assert "DUPLICATE_ACTIVE_INVOICE" in {b["code"] for b in error["details"]["blockers"]}
     assert fake_paypal.count("create") == 1
+
+
+async def test_dismissed_send_card_can_be_brought_back_without_a_new_draft(
+    api, fake_paypal, make_agreed
+):
+    project = await make_agreed()
+    await api.post(f"/api/proposals/{pending(project, 'BILL_MILESTONE')['id']}/approve")
+    project = await api.get(f"/api/projects/{project['id']}")
+    send = pending(project, "SEND_INVOICE")
+    await api.post(f"/api/proposals/{send['id']}/dismiss")
+
+    again = await api.post(
+        f"/api/milestones/{project['milestones'][0]['id']}/propose-bill", expect=201
+    )
+    assert again["kind"] == "SEND_INVOICE"
+    assert (await api.post(f"/api/proposals/{again['id']}/approve"))["status"] == "EXECUTED"
+    assert fake_paypal.count("create") == 1
+    assert fake_paypal.count("send") == 1
+
+
+async def test_propose_bill_refuses_a_milestone_that_is_not_ready(api, make_agreed):
+    project = await make_agreed()
+    error = await api.post(
+        f"/api/milestones/{project['milestones'][1]['id']}/propose-bill", expect=409
+    )
+    assert error["code"] == "MILESTONE_NOT_READY"

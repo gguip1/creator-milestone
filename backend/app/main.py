@@ -25,7 +25,7 @@ FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    settings = get_settings()
+    settings = app.dependency_overrides.get(get_settings, get_settings)()
     session_factory = session_factory_for(app)
     with session_factory() as db:
         ensure_seller(db)
@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await poller
     if paypal is not None:
         await paypal.aclose()
+        app.state.paypal_client = None
 
 
 app = FastAPI(title="CreatorMilestone", version="0.1.0", lifespan=lifespan)

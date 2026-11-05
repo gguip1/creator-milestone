@@ -4,7 +4,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.agent.validator import validate_proposal
+from app.agent.validator import billing_paused_code, validate_proposal
 from app.config import Settings
 from app.models import ChangeOrder, Commission, Milestone, PaypalInvoice, Proposal
 from app.models.enums import (
@@ -161,7 +161,7 @@ def project_out(db: Session, commission: Commission, settings: Settings) -> sche
         share_token=commission.share_token,
         client_path=f"/c/{commission.share_token}",
         missing_fields=missing_fields(commission),
-        billing_disabled_code=commission.seller.billing_disabled_code,
+        billing_disabled_code=billing_paused_code(db, commission.seller),
         milestones=[milestone_out(m) for m in commission.milestones],
         invoices=[invoice_out(i) for i in commission.invoices],
         proposals=[proposal_out(db, p, settings) for p in commission.proposals],

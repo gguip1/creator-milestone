@@ -1,11 +1,16 @@
 """HTTP contract: uniform errors, Idempotency-Key, state conflicts, scope, settings, demo reset."""
 
+import httpx
 import pytest
+from fastapi.testclient import TestClient
+from pydantic import SecretStr
+from sqlalchemy import select
 
+from app.api.deps import get_paypal_client
 from app.main import app
-from app.models import ExtractionField, IdempotencyRecord
+from app.models import ExtractionField, IdempotencyRecord, Proposal
 from app.schemas.ai import LLMUnavailableError
-from app.services.seed import FOLLOW_UP_MESSAGE, INTAKE_MESSAGE
+from app.services.seed import FOLLOW_UP_MESSAGE, INTAKE_MESSAGE, seed_demo_project
 from tests.conftest import bill_and_send, pending
 
 # --- Uniform errors ---
@@ -447,10 +452,61 @@ async def test_webhook_is_a_documented_placeholder(api):
     assert response.json()["code"] == "NOT_IMPLEMENTED"
 
 
-async def test_health_reports_token_state_only_when_configured(api, settings):
+async def test_health_without_credentials_skips_the_token_check(api):
+    app.dependency_overrides[get_paypal_client] = lambda: None
     body = await api.get("/api/health")
-    assert body["paypal"] == {"environment": "SANDBOX", "configured": False, "token_ok": True}
+    assert body["status"] == "ok"
+    assert body["paypal"] == {"environment": "SANDBOX", "configured": False, "token_ok": None}
+
+
+async def test_health_reports_a_working_token_and_no_secrets(api, fake_paypal):
+    body = await api.get("/api/health")
+    assert body["paypal"]["token_ok"] is True
     assert "secret" not in str(body).lower()
+    assert "fake-token" not in str(body)
+
+
+async def test_health_stays_ok_when_paypal_is_down(api):
+    class Down:
+        async def get_access_token(self):
+            raise httpx.ConnectError("down")
+
+    app.dependency_overrides[get_paypal_client] = Down
+    body = await api.get("/api/health")
+    assert body["status"] == "ok"
+    assert body["paypal"]["token_ok"] is False
+
+
+def test_startup_seeds_recovers_and_stops_cleanly(session_factory, settings):
+    settings.paypal_client_id = "configured-for-this-test"
+    settings.paypal_client_secret = SecretStr("configured-for-this-test")
+    settings.poll_interval_seconds = 3600
+    with session_factory() as db:
+        project = seed_demo_project(db)
+        project_id = project.id
+        db.add(
+            Proposal(
+                commission_id=project_id,
+                kind="BILL_MILESTONE",
+                payload_json={},
+                rationale="stuck",
+                scope_version=1,
+                target_ref=f"milestone:{project.milestones[0].id}",
+                target_state="READY_TO_BILL",
+                idempotency_key="stuck",
+                status="APPROVED",
+            )
+        )
+        db.commit()
+
+    with TestClient(app) as client:
+        assert client.get("/api/health").status_code == 200
+
+    with session_factory() as db:
+        card = db.scalar(select(Proposal).where(Proposal.idempotency_key == "stuck"))
+        assert card.status == "FAILED"
+        assert card.error_code == "INTERRUPTED"
+    assert app.state.paypal_client is None
 
 
 async def test_client_view_hides_seller_data(api, make_agreed):
