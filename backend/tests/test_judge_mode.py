@@ -331,6 +331,17 @@ async def test_jump_to_sketch_shared_logs_delivery_after_paid(api, settings, fak
     )
     assert done["applied"] is True
     assert done["project"]["milestones"][1]["workflow_state"] == "DELIVERED"
+    # The shortcut says so openly: revisions are recorded as used, with an activity entry.
+    assert done["project"]["revisions_used"] == done["project"]["revisions_included"] == 2
+    assert "2 of 2 revisions" in done["message"]
+    assert any(a["action"] == "demo_revisions_logged" for a in done["project"]["activity"])
+
+
+async def test_deposit_jump_does_not_record_revisions(api, settings, fake_paypal):
+    settings.demo_paid_invoice_id = paid_invoice(fake_paypal)
+    project = await start(api)
+    done = await api.post("/api/demo/jump", {"project_id": project["id"], "target": "deposit_paid"})
+    assert done["project"]["revisions_used"] == 0
 
 
 @pytest.mark.parametrize(

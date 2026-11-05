@@ -33,7 +33,7 @@ from app.services.seed import suggested_recipient
 from app.services.state_machines import set_proposal_status
 
 DEMO_TERMS = {
-    "title": "VTuber debut illustration",
+    "title": "Full-body illustration for VTuber debut",
     "deliverables": ["Full-body illustration"],
     "file_formats": ["PNG (transparent)", "PSD (layered)"],
     "revisions_included": 2,
@@ -160,4 +160,20 @@ async def run_jump(
         if sketch.workflow_state == MilestoneState.AWAITING_DELIVERY:
             deliver_milestone(db, sketch, None, "Sketch shared (demo shortcut)")
             message += " The sketch is logged as shared, so the client can approve it."
+            # The demo story: both included revisions were used in the sketch round. Recorded
+            # openly in the activity log so Scope Guard prices the next request from real state.
+            used = commission.revisions_included or 0
+            if commission.revisions_used < used:
+                commission.revisions_used = used
+                log_activity(
+                    db,
+                    commission,
+                    Actor.SYSTEM,
+                    "demo_revisions_logged",
+                    revisions_used=used,
+                    revisions_included=used,
+                )
+                message += (
+                    f" It also records {used} of {used} revisions as used in the sketch round."
+                )
     return JumpResult(True, message)

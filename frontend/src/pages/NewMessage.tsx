@@ -90,6 +90,15 @@ export function NewMessagePage() {
             Check against scope
           </Button>
         </div>
+        {p && p.revisions_included !== null && p.revisions_used < p.revisions_included && p.change_orders.length === 0 && (
+          <p role="note" className="mt-4 rounded-md border border-warn/60 bg-warn-soft px-3 py-2.5 text-[14px] leading-5 text-warn">
+            Before you use the example: it asks for “one more pass on the face”, and the demo assumes both revisions
+            were used in the sketch round. This project shows {p.revisions_used} of {p.revisions_included} used, so
+            that request would still be in scope and only the extra outfit would be billed.{" "}
+            <Link className="underline" to={`/projects/${id}`}>Log the revisions on the project page first</Link>{" "}
+            (the Log a revision button) to see the extra revision billed too.
+          </p>
+        )}
         <ExampleRow className="mt-4" button="Use example message 2" onUse={() => setMessage(EXAMPLE_FOLLOW_UP)}>
           The demo client's follow-up after the sketch: a second outfit, one more pass on the face, and a merch question. It only fills the box; nothing is checked until you press the button.
         </ExampleRow>

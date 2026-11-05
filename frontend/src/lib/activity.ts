@@ -53,6 +53,8 @@ export function describeActivity(a: Activity): string {
       return `Replaced change order #${str(d.number)} with a newer one.`;
     case "revision_logged":
       return `Logged a revision: ${str(d.revisions_used)} of ${str(d.revisions_included)} used.`;
+    case "demo_revisions_logged":
+      return `Demo shortcut: recorded ${str(d.revisions_used)} of ${str(d.revisions_included)} revisions as used in the sketch round.`;
     case "milestone_unlocked":
       return `Unlocked “${str(d.milestone)}”.`;
     case "milestone_delivered":
