@@ -60,6 +60,9 @@ export function describeActivity(a: Activity): string {
     case "milestone_approved":
       return `Approved “${str(d.milestone)}”.`;
     case "milestone_billed":
+      if (d.reused_paid_invoice) {
+        return `“${str(d.milestone)}” counted as billed by reusing a previously paid sandbox invoice (${str(d.paypal_invoice_id)}). No new invoice was created.`;
+      }
       return `Billed “${str(d.milestone)}”, $${str(d.amount)}, ${str(d.invoice_number)}.`;
     case "milestone_settled":
       return `“${str(d.milestone)}” settled.`;

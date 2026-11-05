@@ -530,3 +530,16 @@ async def test_client_sees_invoice_only_after_it_is_sent(api, make_agreed):
     assert invoice["payer_link"].startswith("https://")
     assert invoice["amount_minor_units"] == 9000
     assert invoice["status_label"] == "Sent — awaiting payment"
+
+
+async def test_over_length_message_names_the_limit(api):
+    body = await api.post("/api/analyze", {"message": "x" * 5001}, expect=422)
+    assert body["code"] == "VALIDATION_ERROR"
+    assert "5,000 characters" in body["message"]
+    assert body["details"]["max_length"] == 5000
+    assert "xxxx" not in str(body)  # the rejected input is never echoed
+
+
+async def test_other_validation_errors_stay_generic(api):
+    body = await api.post("/api/analyze", {}, expect=422)
+    assert body["message"] == "Some fields are missing or invalid."

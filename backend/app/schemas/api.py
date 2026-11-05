@@ -402,6 +402,18 @@ class DemoInfoOut(BaseModel):
     paid_invoice_configured: bool
 
 
+class DemoStatusOut(BaseModel):
+    """What a returning visitor has, so the landing page can offer Continue before Start over."""
+
+    has_project: bool
+    project_id: str | None = None
+    title: str = ""
+    status: str | None = None
+    has_progress: bool = False
+    invoices_at_paypal: int = 0
+    invoices_paid: int = 0
+
+
 class DemoResetOut(BaseModel):
     project: ProjectOut
     suggested_client_email: str | None

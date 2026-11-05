@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { Link, NavLink } from "react-router";
 import { api } from "../lib/api";
+import { formatMoney } from "../lib/format";
 import type { IconName, Tone } from "../lib/status";
 import { useWaking } from "../lib/waking";
 
@@ -271,6 +272,38 @@ export function Loading({ label = "Loading…" }: { label?: string }) {
     <p role="status" className="flex items-center gap-2 py-16 text-muted">
       <Loader2 size={18} className="animate-spin" aria-hidden /> {label}
     </p>
+  );
+}
+
+/** Original scope plus change orders, so a stage's percentage is never read against the grown total. */
+export function TotalBreakdown({
+  base,
+  changeOrders,
+  currency,
+  className,
+}: {
+  base: number;
+  changeOrders: number;
+  currency: string;
+  className?: string;
+}) {
+  if (changeOrders <= 0) return null;
+  const money = (n: number) => formatMoney(n, currency);
+  return (
+    <dl className={cx("rounded-[10px] bg-paper-deep px-4 py-3 text-[15px]", className)}>
+      <div className="flex justify-between gap-4">
+        <dt className="text-muted">Original scope (the percentages apply to this)</dt>
+        <dd><Mono>{money(base)}</Mono></dd>
+      </div>
+      <div className="flex justify-between gap-4">
+        <dt className="text-muted">Change orders</dt>
+        <dd><Mono>+ {money(changeOrders)}</Mono></dd>
+      </div>
+      <div className="mt-1 flex justify-between gap-4 border-t-2 border-ink pt-1 font-semibold">
+        <dt>Total</dt>
+        <dd><Mono>{money(base + changeOrders)}</Mono></dd>
+      </div>
+    </dl>
   );
 }
 

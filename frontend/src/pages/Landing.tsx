@@ -1,5 +1,6 @@
-import { useMutation } from "@tanstack/react-query";
-import { ArrowRight, Check, Pencil, Sparkles, X } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { AlertTriangle, ArrowRight, Check, Pencil, Sparkles, X } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { Button, Chip, ErrorNote, Mono, SandboxBanner, Wordmark } from "../components/ui";
 import { api } from "../lib/api";
@@ -65,8 +66,13 @@ function Step({ n, title, children, sample }: { n: number; title: string; childr
 
 export function Landing() {
   const navigate = useNavigate();
+  const [confirming, setConfirming] = useState(false);
+  const status = useQuery({ queryKey: ["demoStatus"], queryFn: api.demoStatus, retry: 1 });
+  const existing = status.data?.has_project ? status.data : null;
+  const hasProgress = !!existing?.has_progress;
+  // Start over wipes; "Try the demo" without progress only opens what is already there (or seeds one).
   const demo = useMutation({
-    mutationFn: api.demoReset,
+    mutationFn: (mode: "open" | "reset") => (mode === "reset" ? api.demoReset() : api.demoSession()),
     onSuccess: (data) => {
       try {
         if (data.suggested_client_email) localStorage.setItem("suggestedEmail", data.suggested_client_email);
@@ -96,17 +102,53 @@ export function Landing() {
               It turns messy client chats into agreed scope, guards that scope, and bills every stage through
               PayPal. Every money action waits for your approval.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
-              <Button
-                className="px-8 py-4 text-[18px]"
-                pending={demo.isPending}
-                onClick={() => demo.mutate()}
-              >
-                Try the demo
-              </Button>
-              <span className="text-muted">Opens a seeded project. No sign-up.</span>
-            </div>
-            {resume && (
+            {hasProgress && existing ? (
+              <div className="mt-8">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+                  <Link
+                    to={`/projects/${existing.project_id}`}
+                    className="inline-flex items-center gap-2 rounded-lg bg-accent px-8 py-4 text-[18px] leading-tight font-semibold text-white hover:bg-accent-deep"
+                  >
+                    Continue your project <ArrowRight size={18} aria-hidden />
+                  </Link>
+                  <Button variant="secondary" className="px-6 py-4" onClick={() => setConfirming((v) => !v)} aria-expanded={confirming}>
+                    Start over
+                  </Button>
+                </div>
+                <p className="mt-3 text-muted">
+                  You have a demo project{existing.title ? ` (“${existing.title}”)` : ""} in progress. It stays as you left it.
+                </p>
+                {confirming && (
+                  <div role="alertdialog" aria-label="Confirm start over" className="mt-4 max-w-[34em] rounded-[10px] border-2 border-warn bg-warn-soft p-4">
+                    <p className="flex items-start gap-2 font-semibold text-warn">
+                      <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden /> Start over erases this demo project
+                    </p>
+                    <p className="mt-2 text-[15px]">
+                      Your scope, timeline, and proposals here are deleted and the project link stops working.
+                      {existing.invoices_at_paypal > 0 &&
+                        ` ${existing.invoices_at_paypal} invoice${existing.invoices_at_paypal === 1 ? " was" : "s were"} already created at PayPal${existing.invoices_paid > 0 ? ` (${existing.invoices_paid} paid)` : ""}. They stay in the PayPal sandbox and are not cancelled or refunded.`}
+                      {existing.invoices_at_paypal === 0 && " No invoices have been created at PayPal for this project."}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      <Button pending={demo.isPending} onClick={() => demo.mutate("reset")}>
+                        Erase and start over
+                      </Button>
+                      <Button variant="ghost" onClick={() => setConfirming(false)}>
+                        Keep my project
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
+                <Button className="px-8 py-4 text-[18px]" pending={demo.isPending} onClick={() => demo.mutate("open")}>
+                  Try the demo
+                </Button>
+                <span className="text-muted">Opens a seeded project. No sign-up.</span>
+              </div>
+            )}
+            {resume && !existing && (
               <p className="mt-4 text-[15px]">
                 <Link to={`/projects/${resume}`} className="inline-flex items-center gap-1 font-semibold text-accent-deep underline">
                   Back to your last project <ArrowRight size={14} aria-hidden />

@@ -292,6 +292,9 @@ def _apply_revisions_rules(field: ExtractedField) -> ExtractedField:
     if field.value is None:
         return field
     claimed = numbers_in_text(field.value)
+    if len(claimed) == 1 and not field.value.strip().isdigit():
+        # "두 번" or "two" becomes "2", so every language fills the same numeric field.
+        field = field.model_copy(update={"value": str(next(iter(claimed)))})
     if claimed and not claimed & numbers_in_text(field.quote):
         return _require_confirmation(field)
     return field

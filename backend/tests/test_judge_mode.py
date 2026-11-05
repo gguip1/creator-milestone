@@ -386,3 +386,50 @@ async def test_client_page_lists_not_billed_requests_without_internal_fields(api
     view = await api.get(f"/api/c/{project['share_token']}")
     shown = next(c for c in view["change_orders"] if c["id"] == co["id"])
     assert shown["not_billed"] == [{"request_summary": "Merch use later"}]
+
+
+async def test_adopted_invoice_activity_says_reused_not_billed(api, settings, fake_paypal):
+    settings.demo_paid_invoice_id = paid_invoice(fake_paypal)
+    project = await start(api)
+    done = await api.post("/api/demo/jump", {"project_id": project["id"], "target": "deposit_paid"})
+    billed = [a for a in done["project"]["activity"] if a["action"] == "milestone_billed"]
+    assert len(billed) == 1
+    assert billed[0]["details"]["reused_paid_invoice"] is True
+    assert billed[0]["details"]["paypal_invoice_id"] == settings.demo_paid_invoice_id
+
+
+async def test_demo_status_is_read_only_and_reports_progress(api, settings, fake_paypal):
+    empty = await api.get("/api/demo/status")
+    assert empty["has_project"] is False
+    # Asking never seeds a project.
+    assert await api.get("/api/projects") == []
+
+    project = await start(api)
+    fresh = await api.get("/api/demo/status")
+    assert fresh["has_project"] is True and fresh["project_id"] == project["id"]
+    assert fresh["has_progress"] is False and fresh["invoices_at_paypal"] == 0
+
+    settings.demo_paid_invoice_id = paid_invoice(fake_paypal)
+    await api.post("/api/demo/jump", {"project_id": project["id"], "target": "deposit_paid"})
+    worked = await api.get("/api/demo/status")
+    assert worked["has_progress"] is True
+    assert worked["invoices_at_paypal"] == 1 and worked["invoices_paid"] == 1
+
+
+async def test_demo_status_is_per_visitor(api, new_visitor):
+    bob = new_visitor()
+    project = await start(api)
+    assert (await bob.get("/api/demo/status"))["has_project"] is False
+    assert (await api.get("/api/demo/status"))["project_id"] == project["id"]
+
+
+async def test_start_over_keeps_paypal_invoices_untouched(api, settings, fake_paypal):
+    """Start over deletes our records only; it never cancels or refunds at PayPal."""
+    settings.demo_paid_invoice_id = paid_invoice(fake_paypal)
+    project = await start(api)
+    await api.post("/api/demo/jump", {"project_id": project["id"], "target": "deposit_paid"})
+    before = len(fake_paypal.write_calls())
+    again = await start(api)
+    assert again["id"] != project["id"]
+    assert len(fake_paypal.write_calls()) == before
+    await api.get(f"/api/projects/{project['id']}", expect=404)

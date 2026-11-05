@@ -13,7 +13,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import { ProposalCard } from "../components/ProposalCard";
-import { ActorTag, AppShell, Button, Chip, cx, ErrorNote, Loading, Mono } from "../components/ui";
+import { ActorTag, AppShell, Button, Chip, cx, ErrorNote, Loading, Mono, TotalBreakdown } from "../components/ui";
 import { describeActivity } from "../lib/activity";
 import { api, ApiError, type ChangeOrder, type Milestone, type Project, type Proposal } from "../lib/api";
 import { formatDate, formatMoney, formatTime, percent } from "../lib/format";
@@ -46,14 +46,16 @@ function MissingProject() {
   });
   return (
     <div className="py-12">
-      <h1 className="font-display text-[32px]">This demo project is gone</h1>
+      <h1 className="font-display text-[32px]">This project is no longer available</h1>
       <p className="mt-2 max-w-[40em] text-muted">
-        The free demo server restarts now and then and forgets projects, or this link belongs to another visitor.
-        Nothing was billed. Open your own demo project to continue.
+        It was erased by Start over, the free demo server restarted and forgot it, or this link belongs to
+        another visitor. We can't tell from here whether invoices were sent for it. Any invoice that was
+        already sent stays in the PayPal sandbox; open it from the PayPal sandbox account to check. Open
+        your current demo project to continue.
       </p>
       <div className="mt-4">
         <Button pending={session.isPending} onClick={() => session.mutate()}>
-          Open my demo project
+          Open my current demo project
         </Button>
       </div>
       <div className="mt-3"><ErrorNote error={session.error} /></div>
@@ -235,7 +237,13 @@ function Milestones({ project }: { project: Project }) {
     const invoice = project.invoices.find((i) => i.id === m.active_invoice_id) ??
       [...project.invoices].reverse().find((i) => i.milestone_id === m.id && i.paypal_status);
     const status = invoice?.paypal_status ? paypalStatus(invoice.paypal_status) : null;
-    const share = m.kind === "plan" ? percent(m.percentage_basis_points) : "";
+    const hasChangeOrders = project.change_order_total_minor_units > 0;
+    const share =
+      m.kind === "plan"
+        ? hasChangeOrders
+          ? `${percent(m.percentage_basis_points)} of original scope`
+          : percent(m.percentage_basis_points)
+        : "";
     let chip: React.ReactNode = null;
     let detail = "";
     let icon: React.ReactNode = <CircleDashed size={18} />;
@@ -350,6 +358,12 @@ function Milestones({ project }: { project: Project }) {
   return (
     <section aria-labelledby="milestones-h">
       <h2 id="milestones-h" className="font-display text-[28px]">Milestones</h2>
+      <TotalBreakdown
+        className="mt-3"
+        base={project.total_minor_units ?? 0}
+        changeOrders={project.change_order_total_minor_units}
+        currency={project.currency_code}
+      />
       <ol className="relative mt-4 space-y-6">
         {rows.length > 1 && <span aria-hidden className="absolute top-5 bottom-5 left-[18px] w-0.5 bg-line-strong/60" />}
         {rows.map((row) => (
