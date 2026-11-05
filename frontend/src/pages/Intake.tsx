@@ -413,7 +413,7 @@ function IntakeView({ project }: { project: Project }) {
             <p className="font-mono text-[14px] text-neutral">Scope v{project.scope_version}, draft</p>
           </div>
           <div className="mt-5 grid gap-x-4 gap-y-5 sm:grid-cols-2">
-            <FormField className="sm:col-span-2" label="Title" kind={kindOf("title")} value={form.title} onChange={set("title")} />
+            <FormField className="sm:col-span-2" label="Title" kind={analysis && form.title === capitalize(analysis.title.value ?? "") ? kindOf("title") : undefined} value={form.title} onChange={set("title")} />
             <FormField label="Deliverables" kind={kindOf("deliverables")} value={form.deliverables} onChange={set("deliverables")} hint="Separate with ;" />
             <FormField label="File formats" kind={kindOf("file_formats")} value={form.fileFormats} onChange={set("fileFormats")} hint="Separate with ," />
             <FormField label="Deadline" type="date" kind={kindOf("deadline")} value={form.deadline} onChange={set("deadline")} />
