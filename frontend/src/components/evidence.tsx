@@ -1,7 +1,8 @@
 import type { Classification } from "../lib/api";
 import { formatMoney } from "../lib/format";
 import { CLAUSE_LABEL, CLASSIFICATION } from "../lib/status";
-import { Chip, cx, Mono } from "./ui";
+import { ART } from "../lib/art";
+import { Chip, cx, Mono, SampleArt } from "./ui";
 
 export type EvidenceRow = {
   key: string;
@@ -12,6 +13,7 @@ export type EvidenceRow = {
   rate: string;
   amount: number | null;
   needsPrice?: boolean;
+  outfitArt?: boolean;
 };
 
 export function verdictLabel(
@@ -51,7 +53,7 @@ export function EvidenceTable({
       >
         <div
           role="row"
-          className="hidden gap-4 border-b border-line pb-2 text-[14px] font-semibold text-ink md:grid md:grid-cols-[220px_1fr_144px_84px]"
+          className="hidden gap-4 border-b border-line pb-2 eyebrow !text-[12px] md:grid md:grid-cols-[220px_1fr_144px_84px]"
         >
           <span role="columnheader">Client asked</span>
           <span role="columnheader">Verdict and agreement clause</span>
@@ -68,9 +70,10 @@ export function EvidenceTable({
               key={row.key}
               className="grid gap-x-4 gap-y-2 border-b border-line py-2.5 md:grid-cols-[220px_1fr_144px_84px]"
             >
-              <p role="cell" className="font-display text-[17px] leading-snug text-ink italic">
-                {row.quote ? `“${row.quote}”` : "—"}
-              </p>
+              <div role="cell">
+                <p className="quote leading-snug text-ink">{row.quote ? `“${row.quote}”` : "—"}</p>
+                {row.outfitArt && <SampleArt compact {...ART.hoodie} className="mt-2.5" />}
+              </div>
               <div role="cell" className="flex flex-col gap-1.5">
                 {c && (
                   <Chip tone={c.tone} icon={c.icon}>
@@ -89,7 +92,7 @@ export function EvidenceTable({
               <span role="cell" className={cx("md:text-right", row.amount === null && "text-muted")}>
                 {row.amount === null ? (
                   row.needsPrice ? (
-                    <span className="font-semibold text-warn">Needs a price</span>
+                    <span className="font-medium text-warn">Needs a price</span>
                   ) : (
                     "Not billed"
                   )
@@ -101,9 +104,9 @@ export function EvidenceTable({
           );
         })}
       </div>
-      <div className="mt-0 flex flex-wrap items-baseline justify-between gap-2 border-t-2 border-ink pt-3">
+      <div className="mt-0 flex flex-wrap items-baseline justify-between gap-2 border-t border-line-strong pt-3">
         <p className="text-[14px] text-muted">{footnote}</p>
-        <p className="flex items-baseline gap-3 font-semibold">
+        <p className="flex items-baseline gap-3 font-medium">
           {totalLabel} <Mono className="text-[20px]">{formatMoney(total, currency)}</Mono>
         </p>
       </div>

@@ -1,19 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  Check,
-  ExternalLink,
-  Landmark,
-  MessageSquare,
-  Pencil,
-  PenLine,
-  RotateCw,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { Check, ExternalLink, Pencil, RotateCw, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { api, ApiError, type Project, type Proposal } from "../lib/api";
 import { formatMoney, moneyInput, parseMoney } from "../lib/format";
+import { isOutfit } from "../lib/art";
 import { copyText, useProjectMutation } from "../lib/hooks";
 import { paypalStatus } from "../lib/status";
 import { EvidenceTable, type EvidenceRow } from "./evidence";
@@ -75,7 +66,7 @@ function Fact({ label, children, mono }: { label: string; children: ReactNode; m
   return (
     <div className="flex items-baseline justify-between gap-6 border-b border-line py-2.5 last:border-b-0">
       <dt className="text-muted">{label}</dt>
-      <dd className={cx("text-right font-semibold", mono && "font-mono text-[14px]")}>{children}</dd>
+      <dd className={cx("text-right", mono && "font-mono text-[14px]")}>{children}</dd>
     </div>
   );
 }
@@ -90,6 +81,7 @@ function changeOrderRows(p: Proposal): EvidenceRow[] {
     rate: `${line.name} × ${line.quantity}`,
     amount: line.amount_minor_units,
     needsPrice: line.needs_price,
+    outfitArt: isOutfit(line.name, line.quote),
   }));
   const notBilled: EvidenceRow[] = (p.payload.not_billed ?? []).map((item, i) => ({
     key: `nb-${i}`,
@@ -136,50 +128,44 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
   const status = paypalStatus(invoice?.paypal_status);
   const draft = p.kind === "CHANGE_ORDER" ? replyDraftFor(project, p) : null;
 
+  // The one card awaiting a decision gets the 2 px accent border; everything else is a hairline.
   const border = failed || blocked
-    ? "border-[1.5px] border-danger"
-    : executed
-      ? "border-[1.5px] border-success"
-      : waiting
-        ? "border-2 border-accent"
-        : "border border-line";
+    ? "border border-danger"
+    : waiting
+      ? "border-2 border-accent"
+      : "border border-line";
 
   const approveError =
     approve.error instanceof ApiError && !approve.error.proposalFailed ? approve.error : null;
 
   const kicker = executed ? (
-    <span className="flex items-center gap-1.5 text-success">
-      <Landmark size={15} aria-hidden /> PayPal accepted the invoice
-    </span>
+    <span className="text-neutral">PayPal accepted the invoice</span>
   ) : failed ? (
-    <span className="flex items-center gap-1.5 text-danger">
-      <Landmark size={15} aria-hidden /> PayPal said no
-    </span>
+    <span className="text-danger">PayPal could not complete this step</span>
   ) : working ? (
-    <span className="flex items-center gap-1.5 text-muted">
-      <PenLine size={15} aria-hidden /> Approved by {project.seller_display_name}
-    </span>
+    <span>Approved by {project.seller_display_name}</span>
   ) : (
-    <span className="flex items-center gap-1.5 text-accent-deep">
-      <Sparkles size={15} aria-hidden /> Agent proposes · {KICKER[p.kind]}
+    <span className="flex items-center gap-2 text-accent">
+      <span aria-hidden className="size-2 rounded-full bg-accent" />
+      Proposed by agent <span className="text-muted">/ {KICKER[p.kind]}</span>
     </span>
   );
 
   return (
     <article
       aria-label={titleFor(p, false)}
-      className={cx("overflow-hidden rounded-[14px] bg-surface", border)}
+      className={cx("overflow-hidden rounded-lg bg-canvas", border)}
     >
-      <div className="px-5 pt-4 pb-4 sm:px-8">
-        <p className="text-[14px] font-semibold">{kicker}</p>
+      <div className="px-5 pt-5 pb-4 sm:px-6">
+        <p className="eyebrow">{kicker}</p>
         <div className="mt-1 flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
-          <h3 className="font-display text-[26px] leading-tight sm:text-[34px]">
+          <h3 className="font-display text-[22px] leading-7 sm:text-[24px] sm:leading-8">
             {failed ? "PayPal could not complete this step" : executed && p.kind === "SEND_INVOICE" ? "Invoice sent" : titleFor(p, working)}
           </h3>
-          <Mono className="text-[30px] leading-none sm:text-[44px]">{formatMoney(amount, currency)}</Mono>
+          <Mono className="text-[24px] leading-none sm:text-[28px]">{formatMoney(amount, currency)}</Mono>
         </div>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-          <p className="max-w-[56ch] text-[16px] text-muted">
+          <p className="max-w-[56ch] text-[15px] leading-6 text-muted">
             {failed ? (p.error_message ?? "PayPal could not complete this step.") : p.rationale}
           </p>
           <div>
@@ -194,7 +180,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
       </div>
 
       {p.kind === "CHANGE_ORDER" ? (
-        <div className="px-5 pb-4 sm:px-8">
+        <div className="px-5 pb-4 sm:px-6">
           <EvidenceTable
             rows={changeOrderRows(p)}
             total={amount}
@@ -204,7 +190,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
           />
         </div>
       ) : (
-        <dl className="mx-5 border-t border-line text-[16px] sm:mx-8">
+        <dl className="mx-5 border-t border-line text-[16px] sm:mx-6">
           {p.payload.invoice_number && (
             <Fact label="Invoice" mono>
               {p.payload.invoice_number}
@@ -224,18 +210,16 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
       )}
 
       {failed && p.error_code && (
-        <div className="mt-2 bg-paper-deep px-5 py-3 sm:px-8">
-          <p className="text-[14px] text-muted">PayPal code</p>
+        <div className="mt-2 bg-fill px-5 py-3 sm:px-6">
+          <p className="text-[13px] text-muted">PayPal code</p>
           <p className="font-mono text-[14px] break-all">{p.error_code}</p>
         </div>
       )}
 
       {draft && (
-        <div className="bg-paper-deep px-5 py-3 sm:px-8">
+        <div className="bg-fill px-5 py-3 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="flex items-center gap-2 font-semibold">
-              <MessageSquare size={16} aria-hidden /> Reply draft ready to copy
-            </p>
+            <p className="eyebrow">Reply draft, ready to copy</p>
             <Button
               variant="secondary"
               className="px-3 py-1.5 text-[14px]"
@@ -246,16 +230,16 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
               {copied ? "Copied" : "Copy reply"}
             </Button>
           </div>
-          <p className={cx("mt-1 text-[15px] text-muted", !fullDraft && "line-clamp-2")}>“{draft}”</p>
-          <button type="button" onClick={() => setFullDraft(!fullDraft)} className="mt-1 text-[14px] font-semibold text-accent-deep underline">
+          <p className={cx("mt-2 text-[15px] text-neutral", !fullDraft && "line-clamp-2")}>“{draft}”</p>
+          <button type="button" onClick={() => setFullDraft(!fullDraft)} className="mt-1 text-[14px] font-medium text-link underline">
             {fullDraft ? "Show less" : "Show the full reply"}
           </button>
         </div>
       )}
 
       {explaining && locked && (
-        <div className="space-y-3 border-t border-line bg-paper-deep px-5 py-4 sm:px-8">
-          <p className="font-semibold">The recipient is locked because both of you agreed to scope v{project.scope_version}.</p>
+        <div className="space-y-3 border-t border-line bg-fill px-5 py-4 sm:px-6">
+          <p className="font-medium text-ink">The recipient is locked because both of you agreed to scope v{project.scope_version}.</p>
           <p className="text-[15px] text-muted">
             The billing email ({p.payload.recipient_email ?? "none"}) is part of that agreement, so it cannot be changed
             quietly afterwards. If the address is wrong, cancel this commission and start a new one with the right
@@ -272,7 +256,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
             >
               Cancel this commission
             </Button>
-            <Link to="/" className="inline-flex items-center rounded-lg px-4 py-3 font-semibold text-accent-deep underline">
+            <Link to="/" className="inline-flex items-center rounded-md px-4 py-3 font-medium text-link underline">
               Start a new project
             </Link>
           </div>
@@ -284,7 +268,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
         <EditPanel proposal={p} project={project} onDone={() => { setEditing(false); refetch(); }} />
       )}
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-4 sm:flex-nowrap sm:px-8">
+      <div className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-4 sm:flex-nowrap sm:px-6">
         {working && (
           <Button pending block className="sm:w-full">
             {WORKING_LABEL[p.kind]}
@@ -306,7 +290,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
               Dismiss
             </Button>
             {blocked ? (
-              <Link to={`/projects/${project.id}/intake`} className="ml-auto text-[14px] font-semibold text-accent-deep underline">
+              <Link to={`/projects/${project.id}/intake`} className="ml-auto text-[14px] font-medium text-link underline">
                 Edit scope
               </Link>
             ) : (
@@ -343,7 +327,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
             href={invoice.payer_link}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-line-strong px-5 py-3 font-semibold hover:bg-paper-deep"
+            className="inline-flex items-center gap-2 rounded-md border border-line-strong px-5 py-3 font-medium hover:bg-fill"
           >
             <ExternalLink size={17} aria-hidden /> Open PayPal invoice
           </a>
@@ -354,7 +338,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
         {stale && <p className="text-[14px] text-muted">Scope or invoice changed since this was proposed.</p>}
       </div>
       {(approveError || dismiss.error) && (
-        <div className="px-5 pb-4 sm:px-8">
+        <div className="px-5 pb-4 sm:px-6">
           <ErrorNote error={approveError ?? dismiss.error} />
         </div>
       )}
@@ -412,19 +396,19 @@ function EditPanel({ proposal: p, project, onDone }: { proposal: Proposal; proje
     }
   }
 
-  const input = "w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-[16px]";
+  const input = "w-full rounded-md border border-line-strong bg-fill px-3 py-2 text-[16px]";
   return (
-    <div className="space-y-3 border-t border-line bg-paper px-5 py-4 sm:px-8">
+    <div className="space-y-3 border-t border-line bg-canvas px-5 py-4 sm:px-6">
       {p.status === "FAILED" ? (
-        <label className="block text-[14px] font-semibold">
+        <label className="block text-[14px] font-medium">
           Client's PayPal email
           <input className={cx(input, "mt-1 font-normal")} value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
         </label>
       ) : p.kind === "CHANGE_ORDER" ? (
         lines.map((l, i) => (
           <div key={l.id} className="flex flex-wrap items-end gap-3">
-            <span className="min-w-[8rem] flex-1 font-semibold">{l.name}</span>
-            <label className="text-[14px] font-semibold">
+            <span className="min-w-[8rem] flex-1 font-medium">{l.name}</span>
+            <label className="text-[14px] font-medium">
               Quantity
               <input
                 className={cx(input, "mt-1 w-20 font-normal")}
@@ -434,7 +418,7 @@ function EditPanel({ proposal: p, project, onDone }: { proposal: Proposal; proje
                 onChange={(e) => setLines(lines.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))}
               />
             </label>
-            <label className="text-[14px] font-semibold">
+            <label className="text-[14px] font-medium">
               Unit price
               <input
                 className={cx(input, "mt-1 w-28 font-mono font-normal")}
@@ -455,12 +439,12 @@ function EditPanel({ proposal: p, project, onDone }: { proposal: Proposal; proje
       ) : (
         <>
           {p.kind !== "BILL_MILESTONE" && (
-            <label className="block text-[14px] font-semibold">
+            <label className="block text-[14px] font-medium">
               Subject
               <input className={cx(input, "mt-1 font-normal")} value={subject} onChange={(e) => setSubject(e.target.value)} />
             </label>
           )}
-          <label className="block text-[14px] font-semibold">
+          <label className="block text-[14px] font-medium">
             Note on the invoice
             <textarea className={cx(input, "mt-1 font-normal")} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
           </label>

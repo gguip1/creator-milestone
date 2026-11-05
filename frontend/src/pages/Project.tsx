@@ -1,22 +1,13 @@
-import {
-  Check,
-  CircleDashed,
-  Copy,
-  ExternalLink,
-  Hourglass,
-  Lock,
-  PenLine,
-  RefreshCw,
-  Sparkles,
-} from "lucide-react";
+import { Check, Copy, ExternalLink, Hourglass, Lock, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import { ProposalCard } from "../components/ProposalCard";
-import { ActorTag, AppShell, Button, Chip, cx, ErrorNote, Loading, Mono, TotalBreakdown } from "../components/ui";
+import { ActorTag, AppShell, Button, Chip, cx, ErrorNote, Eyebrow, Loading, Mono, SampleArt, TotalBreakdown } from "../components/ui";
 import { describeActivity } from "../lib/activity";
 import { api, ApiError, type ChangeOrder, type Milestone, type Project, type Proposal } from "../lib/api";
 import { formatDate, formatMoney, formatTime, percent } from "../lib/format";
+import { ART, milestoneArt } from "../lib/art";
 import { copyText, useProject, useProjectMutation } from "../lib/hooks";
 import { paypalStatus } from "../lib/status";
 
@@ -46,7 +37,7 @@ export function MissingProject() {
   });
   return (
     <div className="py-12">
-      <h1 className="font-display text-[32px]">This project is no longer available</h1>
+      <h1 className="font-display text-[30px]">This project is no longer available</h1>
       <p className="mt-2 max-w-[40em] text-muted">
         It was erased by Start over, the free demo server restarted and forgot it, or this link belongs to
         another visitor. We can't tell from here whether invoices were sent for it. Any invoice that was
@@ -71,15 +62,15 @@ function DemoJumps({ project }: { project: Project }) {
   const fresh = project.invoices.length === 0 && ["DRAFT", "AWAITING_ACCEPTANCE", "AGREED"].includes(project.status);
   if (!info.data?.judge_mode || !fresh) return null;
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[10px] border border-dashed border-line-strong px-4 py-3 text-[15px]">
-      <span className="font-semibold">Judge shortcuts</span>
+    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-dashed border-line-strong px-4 py-3 text-[15px]">
+      <span className="font-medium">Judge shortcuts</span>
       {(["deposit_paid", "sketch_shared"] as const).map((target) => (
         <button
           key={target}
           type="button"
           disabled={jump.isPending}
           onClick={() => jump.mutate(target)}
-          className="font-semibold text-accent-deep underline disabled:opacity-60"
+          className="font-medium text-link underline disabled:opacity-60"
         >
           {target === "deposit_paid" ? "Jump to: deposit paid" : "Jump to: sketch shared"}
         </button>
@@ -88,7 +79,7 @@ function DemoJumps({ project }: { project: Project }) {
         Fills sample terms, then uses a previously paid sandbox invoice. PayPal is asked live; nothing is shown as paid unless PayPal confirms it.
       </span>
       {jump.data && (
-        <p role="status" className="basis-full font-semibold">
+        <p role="status" className="basis-full font-medium">
           {jump.data.message}
         </p>
       )}
@@ -100,8 +91,8 @@ function DemoJumps({ project }: { project: Project }) {
 function Summary({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[14px] text-muted">{label}</dt>
-      <dd className="text-[16px] font-semibold">{children}</dd>
+      <dt className="eyebrow !text-[12px] !tracking-[0.14em]">{label}</dt>
+      <dd className="mt-1 text-[15px] leading-6">{children}</dd>
     </div>
   );
 }
@@ -119,31 +110,28 @@ function ProjectView({ project }: { project: Project }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-2 border-b border-line pb-4">
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-line pb-5">
         <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2">
-          <h1 className="font-display text-[32px] leading-tight sm:text-[40px]">
+          <h1 className="font-display text-[30px] leading-9 sm:text-[36px] sm:leading-10">
             {project.title || "Untitled commission"}
           </h1>
-          <Chip
-            className="border border-ink bg-transparent text-ink"
-            icon="file"
-          >
+          <p className="font-mono text-[14px] text-neutral">
             Scope v{project.scope_version}
-            <span className="ml-1 font-normal text-muted">
+            <span className="ml-2 font-sans text-muted">
               {accepted ? "accepted by both" : sellerOnly ? "waiting for client" : "draft"}
             </span>
-          </Chip>
+          </p>
         </div>
         <p className="ml-auto flex items-baseline gap-3">
-          <span className="text-muted">Total</span>
-          <Mono className="text-[28px] leading-none sm:text-[36px]">
+          <Eyebrow>Total</Eyebrow>
+          <Mono className="text-[24px] leading-none sm:text-[28px]">
             {formatMoney(total, project.currency_code)} {project.currency_code}
           </Mono>
         </p>
       </div>
 
       <DemoJumps project={project} />
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-b border-line py-3 md:grid-cols-3 xl:grid-cols-6">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-b border-line py-5 md:grid-cols-3 xl:grid-cols-6">
         <Summary label="Deliverable">{project.deliverables.join("; ") || "—"}</Summary>
         <Summary label="Files">{project.file_formats.join(", ") || "—"}</Summary>
         <Summary label="Revisions">
@@ -153,7 +141,7 @@ function ProjectView({ project }: { project: Project }) {
               type="button"
               onClick={() => logRevision.mutate()}
               disabled={logRevision.isPending}
-              className="ml-2 whitespace-nowrap text-[14px] font-semibold text-accent-deep underline"
+              className="ml-2 whitespace-nowrap text-[14px] font-medium text-link underline"
             >
               Log a revision
             </button>
@@ -171,12 +159,12 @@ function ProjectView({ project }: { project: Project }) {
           <Milestones project={project} />
 <div className="flex flex-wrap items-center gap-3 mt-6 border-t border-line pt-3 text-[15px]">
         <span className="text-muted">Client page:</span>
-        <a href={project.client_path} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-semibold text-accent-deep underline">
+        <a href={project.client_path} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium text-link underline">
           Open <ExternalLink size={14} aria-hidden />
         </a>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 font-semibold text-accent-deep underline"
+          className="inline-flex items-center gap-1.5 font-medium text-link underline"
           onClick={async () => setCopied(await copyText(clientUrl))}
         >
           <Copy size={14} aria-hidden /> {copied ? "Link copied" : "Copy link"}
@@ -198,16 +186,20 @@ function NodeIcon({ tone, children }: { tone: "success" | "accent" | "neutral"; 
     <span
       aria-hidden
       className={cx(
-        "z-10 flex size-[38px] shrink-0 items-center justify-center rounded-full border-2",
-        tone === "success" && "border-success-soft bg-success-soft text-success",
-        tone === "accent" && "border-accent bg-surface text-accent",
-        tone === "neutral" && "border-line bg-paper-deep text-neutral",
+        "z-10 flex size-8 shrink-0 items-center justify-center rounded-full border",
+        tone === "success" && "border-accent bg-accent text-on-accent",
+        tone === "accent" && "border-accent bg-canvas text-accent",
+        tone === "neutral" && "border-line-strong bg-canvas text-muted",
       )}
     >
       {children}
     </span>
   );
 }
+
+const Dot = ({ filled }: { filled?: boolean }) => (
+  <span className={cx("size-2 rounded-full", filled ? "bg-accent" : "border border-current")} />
+);
 
 type Row = {
   key: string;
@@ -219,6 +211,7 @@ type Row = {
   chip: React.ReactNode;
   detail: string;
   action?: React.ReactNode;
+  art?: keyof typeof ART | null;
 };
 
 function Milestones({ project }: { project: Project }) {
@@ -246,7 +239,7 @@ function Milestones({ project }: { project: Project }) {
         : "";
     let chip: React.ReactNode = null;
     let detail = "";
-    let icon: React.ReactNode = <CircleDashed size={18} />;
+    let icon: React.ReactNode = <Dot />;
     let tone: Row["tone"] = "neutral";
     let action: React.ReactNode;
 
@@ -256,7 +249,7 @@ function Milestones({ project }: { project: Project }) {
         ? `Previously paid sandbox invoice ${invoice.paypal_invoice_id}, confirmed as paid by PayPal just now`
         : `Invoice ${invoice.invoice_number}, billed under scope v${invoice.billed_scope_version}`;
       if (status.paid) {
-        icon = <Check size={19} />;
+        icon = <Check size={16} />;
         tone = "success";
       }
       if (status.awaiting) {
@@ -271,7 +264,7 @@ function Milestones({ project }: { project: Project }) {
         case "LOCKED":
           chip = <Chip icon={<Lock size={15} aria-hidden />}>Locked</Chip>;
           detail = "Unlocks when the previous milestone is paid";
-          icon = <Lock size={17} />;
+          icon = <Lock size={14} />;
           break;
         case "AWAITING_DELIVERY":
           chip = <Chip icon={<Hourglass size={15} aria-hidden />}>Waiting for you to deliver</Chip>;
@@ -281,19 +274,19 @@ function Milestones({ project }: { project: Project }) {
               Log as shared with client
             </Button>
           );
-          icon = <PenLine size={17} />;
+          icon = <Dot />;
           break;
         case "DELIVERED":
           chip = <Chip icon={<Hourglass size={15} aria-hidden />}>Shared, awaiting client approval</Chip>;
           detail = "Agent proposes the invoice when the client approves";
-          icon = <PenLine size={17} />;
+          icon = <Dot />;
           break;
         default:
           if (livePending(m)) {
             chip = <Chip tone="accent" icon="help">Waiting for your approval</Chip>;
             detail = "The agent's card is in the panel.";
             tone = "accent";
-            icon = <Sparkles size={17} />;
+            icon = <Dot filled />;
           } else if (["APPROVED", "READY_TO_BILL"].includes(m.workflow_state)) {
             chip = <Chip icon="clock">Ready to bill</Chip>;
             detail = "No card is open for this stage.";
@@ -325,6 +318,7 @@ function Milestones({ project }: { project: Project }) {
       chip,
       detail,
       action,
+      art: m.delivered_at ? milestoneArt(m.title) : null,
     };
   });
 
@@ -341,7 +335,7 @@ function Milestones({ project }: { project: Project }) {
       share: "",
       amount: co.total_minor_units,
       tone: "accent",
-      icon: <Sparkles size={17} />,
+      icon: <Dot filled />,
       chip:
         co.status === "DRAFT" ? (
           <Chip tone="accent" icon="help">Waiting for your approval</Chip>
@@ -357,28 +351,36 @@ function Milestones({ project }: { project: Project }) {
 
   return (
     <section aria-labelledby="milestones-h">
-      <h2 id="milestones-h" className="font-display text-[28px]">Milestones</h2>
+      <h2 id="milestones-h" className="eyebrow">Milestones</h2>
       <TotalBreakdown
         className="mt-3"
         base={project.total_minor_units ?? 0}
         changeOrders={project.change_order_total_minor_units}
         currency={project.currency_code}
       />
-      <ol className="relative mt-4 space-y-6">
-        {rows.length > 1 && <span aria-hidden className="absolute top-5 bottom-5 left-[18px] w-0.5 bg-line-strong/60" />}
+      <ol className="relative mt-5 space-y-7">
+        {rows.length > 1 && <span aria-hidden className="absolute top-5 bottom-5 left-[15.5px] w-px bg-line" />}
         {rows.map((row) => (
           <li key={row.key} className="relative flex gap-4">
             <NodeIcon tone={row.tone}>{row.icon}</NodeIcon>
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-3">
-                <h3 className="text-[20px] font-semibold">
-                  {row.title} {row.share && <span className="text-[17px] font-normal text-muted">{row.share}</span>}
+                <h3 className="text-[18px] leading-7">
+                  {row.title} {row.share && <span className="text-[15px] text-muted">{row.share}</span>}
                 </h3>
-                <Mono className="text-[18px]">{formatMoney(row.amount, project.currency_code)}</Mono>
+                <Mono className="text-[16px]">{formatMoney(row.amount, project.currency_code)}</Mono>
               </div>
               <div className="mt-1.5">{row.chip}</div>
               {row.detail && <p className="mt-1.5 text-[15px] text-muted">{row.detail}</p>}
               {row.action && <div className="mt-1.5">{row.action}</div>}
+              {row.art && (
+                <SampleArt
+                  compact
+                  {...ART[row.art]}
+                  alt={row.art === "sketch" ? `${ART.sketch.alt}, shared for review` : `${ART.final.alt}, final delivery`}
+                  className="mt-3"
+                />
+              )}
             </div>
           </li>
         ))}
@@ -391,11 +393,11 @@ function Activity({ project }: { project: Project }) {
   const items = [...project.activity].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 14);
   return (
     <section aria-labelledby="activity-h" className="mt-12">
-      <h2 id="activity-h" className="font-display text-[28px]">Activity</h2>
+      <h2 id="activity-h" className="eyebrow">Activity</h2>
       <ul className="mt-3 border-t border-line">
         {items.map((a) => (
           <li key={a.id} className="flex items-start gap-3 border-b border-line py-3">
-            <Mono className="w-12 shrink-0 pt-0.5 text-[14px] text-muted">{formatTime(a.created_at)}</Mono>
+            <Mono className="w-12 shrink-0 pt-0.5 text-[13px] leading-5 text-muted">{formatTime(a.created_at)}</Mono>
             <ActorTag actor={a.actor} />
             <p className="min-w-0 text-[15px]">{describeActivity(a)}</p>
           </li>
@@ -424,17 +426,14 @@ function AgentPanel({ project }: { project: Project }) {
 
   return (
     <section aria-labelledby="agent-h">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <h2 id="agent-h" className="flex items-center gap-2 font-display text-[28px]">
-          <Sparkles size={22} className="text-accent" aria-hidden />
-          Agent: {waiting === 0 ? "nothing waiting" : `${waiting} proposal${waiting === 1 ? "" : "s"} waiting`}
-        </h2>
-        <p className="text-[15px] font-semibold text-muted">AI proposes. You approve. PayPal executes.</p>
-      </div>
+      <h2 id="agent-h" className="eyebrow">Agent</h2>
+      <p className="mt-1 font-display text-[24px] leading-8">
+        {waiting === 0 ? "Nothing waiting for you" : `${waiting} proposal${waiting === 1 ? "" : "s"} waiting for your approval`}
+      </p>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-5 space-y-4">
         {project.billing_disabled_code && (
-          <p role="alert" className="rounded-[10px] border border-danger bg-danger-soft p-4 text-danger">
+          <p role="alert" className="rounded-lg border border-danger bg-danger-soft p-4 text-danger">
             <strong>Billing is paused.</strong> PayPal refused the last request for this account
             ({project.billing_disabled_code}). Fix the PayPal app permissions, then approve a card to resume.
           </p>
@@ -454,9 +453,9 @@ function AgentPanel({ project }: { project: Project }) {
           <ProposalCard key={p.id} proposal={p} project={project} />
         ))}
         {open.length === 0 && featured.length === 0 && ["AGREED", "IN_PROGRESS", "COMPLETED"].includes(project.status) && (
-          <p className="rounded-[10px] border border-line bg-surface p-5 text-muted">
+          <p className="rounded-lg border border-line p-5 text-muted">
             Nothing needs your approval. When the client sends a new message,{" "}
-            <Link className="font-semibold text-accent-deep underline" to={`/projects/${project.id}/messages/new`}>
+            <Link className="font-medium text-link underline" to={`/projects/${project.id}/messages/new`}>
               paste it here
             </Link>{" "}
             and the agent checks it against the agreement.
@@ -472,16 +471,16 @@ function AgentPanel({ project }: { project: Project }) {
 
 function NextStep({ title, children, to, cta, external }: { title: string; children: React.ReactNode; to: string; cta: string; external?: boolean }) {
   return (
-    <div className="rounded-[14px] border border-line bg-surface p-5">
-      <h3 className="font-display text-[24px]">{title}</h3>
+    <div className="rounded-lg border-2 border-accent p-5">
+      <h3 className="font-display text-[22px] leading-7">{title}</h3>
       <p className="mt-1 text-muted">{children}</p>
       <div className="mt-3">
         {external ? (
-          <a href={to} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-3 font-semibold text-white hover:bg-accent-deep">
+          <a href={to} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-md bg-accent px-5 py-3 font-medium text-on-accent hover:bg-accent-deep">
             {cta} <ExternalLink size={16} aria-hidden />
           </a>
         ) : (
-          <Link to={to} className="inline-flex rounded-lg bg-accent px-5 py-3 font-semibold text-white hover:bg-accent-deep">
+          <Link to={to} className="inline-flex rounded-md bg-accent px-5 py-3 font-medium text-on-accent hover:bg-accent-deep">
             {cta}
           </Link>
         )}
@@ -511,13 +510,13 @@ function EarlierRow({ proposal: p, project }: { proposal: Proposal; project: Pro
   };
   const amount = p.payload.amount_minor_units ?? 0;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-[14px] border border-line bg-surface px-6 py-4">
+    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-lg border border-line px-5 py-4">
       <div className="min-w-0">
-        <p className="text-[17px] font-semibold">Earlier: {names[p.kind]}</p>
+        <p className="text-[16px]">Earlier: {names[p.kind]}</p>
         <p className="text-[15px] text-muted">{detail[p.kind]}</p>
       </div>
       <div className="flex items-center gap-4">
-        <Mono className="text-[18px]">{formatMoney(amount, p.payload.currency_code ?? project.currency_code)}</Mono>
+        <Mono className="text-[16px]">{formatMoney(amount, p.payload.currency_code ?? project.currency_code)}</Mono>
         {p.kind === "CHANGE_ORDER" ? (
           <Chip icon="check" tone="neutral">Approved by you</Chip>
         ) : status ? (
