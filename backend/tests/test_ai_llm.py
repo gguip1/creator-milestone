@@ -46,11 +46,11 @@ async def run() -> llm.LLMResult[Out]:
 
 
 async def test_chain_retries_transient_errors_then_falls_through_to_the_next_model():
-    provider = use(FakeProvider([unavailable(), unavailable(), unavailable(), {"ok": True}]))
+    provider = use(FakeProvider([unavailable(), unavailable(), {"ok": True}]))
     result = await run()
     assert result.parsed.ok is True
     assert result.model_id == "gemini-3.1-flash-lite"
-    assert provider.models == ["gemini-3.5-flash-lite"] * 3 + ["gemini-3.1-flash-lite"]
+    assert provider.models == ["gemini-3.5-flash-lite"] * 2 + ["gemini-3.1-flash-lite"]
 
 
 async def test_non_retryable_error_moves_straight_to_the_next_model():
@@ -69,10 +69,10 @@ async def test_invalid_output_counts_as_a_failed_attempt(bad):
 
 
 async def test_every_model_failing_raises_unavailable():
-    provider = use(FakeProvider([unavailable() for _ in range(6)]))
+    provider = use(FakeProvider([unavailable() for _ in range(4)]))
     with pytest.raises(LLMUnavailableError):
         await run()
-    assert len(provider.calls) == 6
+    assert len(provider.calls) == 4
 
 
 async def test_missing_key_raises_unavailable(monkeypatch):
