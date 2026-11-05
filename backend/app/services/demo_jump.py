@@ -15,7 +15,13 @@ from app.agent.rules import reconcile
 from app.config import Settings
 from app.errors import conflict
 from app.models import Commission, Milestone, PaypalInvoice
-from app.models.enums import Actor, CommissionStatus, MilestoneState
+from app.models.enums import (
+    Actor,
+    CommissionStatus,
+    MilestoneState,
+    ProposalKind,
+    ProposalStatus,
+)
 from app.services.activity import log_activity
 from app.services.invoices import apply_remote_status
 from app.services.milestones import deliver_milestone, plan_milestones
@@ -24,6 +30,7 @@ from app.services.paypal_client import PayPalClient
 from app.services.paypal_errors import PAYPAL_FAILURES
 from app.services.scope import accept_as_client, accept_as_seller, edit_scope, missing_fields
 from app.services.seed import suggested_recipient
+from app.services.state_machines import set_proposal_status
 
 DEMO_TERMS = {
     "title": "VTuber debut illustration",
@@ -50,6 +57,8 @@ def _agree(db: Session, commission: Commission, recipient: str) -> None:
     if commission.status == CommissionStatus.AGREED:
         return
     changes = {name: DEMO_TERMS[name] for name in missing_fields(commission) if name in DEMO_TERMS}
+    if not commission.file_formats_json:
+        changes["file_formats"] = DEMO_TERMS["file_formats"]
     if "client_email" in missing_fields(commission):
         changes["client_email"] = recipient
     edit_scope(db, commission, changes)
@@ -110,6 +119,10 @@ async def _adopt_paid_deposit(
     log_activity(
         db, commission, Actor.SYSTEM, "demo_paid_invoice_adopted", paypal_invoice_id=invoice_id
     )
+    # The billing card is moot now that PayPal confirmed this deposit as paid.
+    for card in commission.proposals:
+        if card.kind == ProposalKind.BILL_MILESTONE and card.status == ProposalStatus.PENDING:
+            set_proposal_status(card, ProposalStatus.DISMISSED)
     apply_remote_status(db, commission, invoice, remote)
     return None
 

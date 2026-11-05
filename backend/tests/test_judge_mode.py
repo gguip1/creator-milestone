@@ -305,6 +305,9 @@ async def test_jump_adopts_a_real_paid_invoice_after_a_live_get(api, settings, f
     invoice = done["project"]["invoices"][0]
     assert invoice["paypal_status"] == "PAID" and invoice["adopted"] is True
     assert done["project"]["milestones"][1]["workflow_state"] == "AWAITING_DELIVERY"
+    assert done["project"]["file_formats"] == ["PNG (transparent)", "PSD (layered)"]
+    # No dead billing card is left behind for the deposit PayPal already shows as paid.
+    assert not [p for p in done["project"]["proposals"] if p["status"] in ("PENDING", "STALE")]
 
 
 async def test_two_visitors_can_adopt_the_same_prepaid_invoice(
