@@ -1,0 +1,9 @@
+S1	Jiwoo's agreement allows two revisions. Her client wants a second outfit, one more face edit, and maybe merch use. The AI checks the agreement and prices the extras. Eighty plus twenty is one hundred dollars. Merch is only a question, so it is not billed. Both sides approve.
+S2	This is a PayPal sandbox, so no real money moves. Here is how the agreement began.
+S3	Jiwoo pastes the client's chat. The AI lists each term with the exact words behind it. Revisions are flagged, because the client only said maybe. Usage rights and email are unknown. It drafts a reply with a Korean translation.
+S4	She fills the gaps and accepts. The client accepts on their phone. Now both sides share the same terms.
+S5	Back to the change order. Both approved, so the agreement became version two. Rules, not the AI, build the invoice from her rate card, one line per extra. Jiwoo approves, and the backend creates it in PayPal. A second approval sends it.
+S6	This is the client's view on PayPal's own page. The extra outfit, eighty dollars. The extra revision, twenty dollars. One hundred in total, and no merch. The agreed terms travel inside the invoice.
+S7	The sandbox buyer pays this same invoice. The invoice number and amount match the one Jiwoo sent.
+S8	Back in the app, PayPal reports the invoice paid. Only then does the app settle the change order. The status is read from PayPal.
+S9	It is for illustrators and character artists who take commissions from clients abroad. Real here: Gemini reading the chat, and PayPal sandbox invoicing and payment. Sandbox: the money and the buyer. Messages are pasted in. The AI fully passed fifteen of twenty test cases, so Jiwoo reviews everything. The voice and sample art are AI generated.

@@ -2,7 +2,7 @@
 
 Project name: **CreatorMilestone**
 
-Tagline (one sentence): An AI back office for independent artists with clients abroad: it turns a messy client chat into an agreed scope, catches scope creep against it, and bills each stage with PayPal invoices that the artist approves.
+Tagline (one sentence): When a client asks for one more change, CreatorMilestone's AI checks the request against the scope both sides agreed to, prices the extras from the artist's rate card, and turns what both approve into a PayPal invoice.
 
 Links to enter on Devpost:
 - Hosted demo: https://creator-milestone.onrender.com
@@ -20,11 +20,15 @@ Comparisons use each product's public help pages, which we could not all open fr
 - **All-in-one tools (Bonsai, HoneyBook)** cover proposals, contracts, invoices and portals, and HoneyBook has AI-assisted invoices. We are narrower: quoted evidence and a priced change order, with no contracts or accounting.
 - **ChatGPT plus copy and paste** can read and draft. We add scope versions, client acceptance, a rate card that sets prices in code, seller approval for each PayPal write, and status read back from PayPal.
 
-## Inspiration
+## The problem
 
-Independent digital artists (illustrators, character designers, VTuber asset makers) take commissions from clients in other countries. The client writes in another language and sends a vague request. Scope, revisions, usage rights, and payment terms stay unclear until work has started. Midway, the client asks for "one more outfit" or "one more pass on the face". The artist either works for free or avoids the awkward conversation about charging. Then they chase each stage payment by hand.
+Commission artists already write terms of service to head off "just one more change". Public guides and artists' own pages repeat the same rules: a limited number of revisions, extra fees for additions (for example $15 per extra revision), commercial use priced separately (1.5x to 2x the base price), and a deposit up front. One guide to commission terms names scope creep, ghosting, chargebacks, and surprise usage such as merchandise as the problems those terms are written to prevent. Sources: [Don Corgi](https://doncorgi.com/blog/art-commission-terms-of-service/), [Artists Aware](https://artistsaware.com/art-commissions/sample-tos-detailed/), [cjkkjh](https://www.cjkkjh.com/commissions-terms-and-conditions), [tapirclip](https://tapirclip.substack.com/p/tos); more in `docs/problem-research.md`.
 
-We built CreatorMilestone for that one person: an artist who wants to be paid fairly for the work they agreed to, without becoming a project manager.
+That shows the structure we model is how artists already work. The gap is that those terms sit in a document the client may not read, while the real agreement happens in a chat, often across languages. When the client later asks for "one more outfit", the artist either does it for free or has the awkward conversation about charging.
+
+**Demand is our hypothesis, not a finding.** We did not interview artists and have no usage or willingness-to-pay data. Scope creep may not be artists' top pain (ghosting, chargebacks, and scams rank alongside it in the same sources, and we prevent none of those), and for very small commissions the extra steps may not be worth it.
+
+We built CreatorMilestone for one person: an artist who wants to be paid fairly for the work they agreed to, without becoming a project manager.
 
 ## What it does
 
@@ -39,6 +43,13 @@ CreatorMilestone is a seller-side agent with three stages: Agree, Bill, Guard.
 **Safety model.** The AI interprets the request, rules propose the invoice, the artist approves, and the backend calls PayPal. The model is not sent rate-card prices and never calculates invoice amounts; client messages can contain amounts, and the model sees those. It selects rate-card codes and quantities, which the artist reviews. It cannot execute PayPal writes: every charge is computed by code and approved by the artist, and a deterministic validator re-checks it before it runs. A wrong classification could still be approved by a person.
 
 This is a sandbox demo. It is not escrow, buyer protection, or a marketplace. Demo acceptance is a click: it does not verify identity, provide an e-signature, or claim enforceability. Pasted messages are sent to Google's Gemini API.
+
+## How AI is used, and what rules and people do
+
+- **The AI (Google Gemini) reads and drafts.** It reads a pasted client chat into typed scope fields with quotes, drafts the clarifying reply and its translation, and checks a later request against the agreed scope: it classifies each request (in scope, exceeds the limit, out of scope, or a question), cites the clause, and picks a rate-card code and quantity.
+- **Rules do the money and the safety.** Code computes every amount from the milestone plan or the artist's rate card, verifies that each quote is in the message, forces hedged wording to needs-confirmation, proposes the invoice, and validates the recipient, amount, and scope version before anything reaches PayPal. The model has no tools and no credentials and is not sent rate-card prices.
+- **People decide.** The artist reviews every field and every proposal, both sides accept the scope, the client approves each change order, and the artist approves creating and sending each invoice. The buyer pays.
+- The AI can be wrong. In our small labeled evaluation (20 author-written cases, one run) it passed every expectation on 15 and missed one ambiguous extra revision; see `docs/ai-eval.md`.
 
 ## How we built it
 
@@ -83,7 +94,7 @@ Planned, not built:
 
 ## Built with
 
-Python, FastAPI, SQLAlchemy, SQLite, React, TypeScript, Vite, Tailwind CSS, PayPal Invoicing v2 (sandbox), Google Gemini API, Render, Docker, GitHub Actions. Built with the help of Claude Code and Codex.
+Python, FastAPI, SQLAlchemy, SQLite, React, TypeScript, Vite, Tailwind CSS, PayPal Invoicing v2 (sandbox), Google Gemini API, Render, Docker, GitHub Actions. Built with the help of Claude Code and Codex. The demo video's narration is AI-generated (Gemini text-to-speech), and the sample art in the demo is AI-generated.
 
 ---
 
@@ -96,6 +107,7 @@ Python, FastAPI, SQLAlchemy, SQLite, React, TypeScript, Vite, Tailwind CSS, PayP
 | Claude Code (Anthropic models) | Development | AI coding agent that wrote much of the code and tests under the owner's direction. Credited as co-author on 30 commits. |
 | Codex (OpenAI) | Development | AI coding agent, credited on one commit. |
 | Orca (multi-agent IDE) | Development | Coordinated the coding agents. |
+| Google Gemini text-to-speech | Demo video | Generated the video's voice-over from the script in `docs/narration.txt`. The narration is AI-generated, not a human voice, and the video and this submission say so. |
 | OpenAI built-in image generation | Demo content | Generated the three AI-generated sample illustrations (a finished piece, a sketch, and a variation) used as demo artwork in `design/assets/demo-art/`. Prompts are in that folder's README. |
 | Pencil (`.pen` design files) | Design | The UI design source in `design/`. |
 
