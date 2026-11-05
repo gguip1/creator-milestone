@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     judge_mode: bool = False
     recipient_allowlist: list[str] = Field(default_factory=list)
     reminder_threshold_minutes: int = 60
+    # In-process PayPal status polling; 0 turns it off.
+    poll_interval_seconds: int = 20
 
     @property
     def paypal_base_url(self) -> str:
