@@ -24,7 +24,7 @@ event -> context -> [LLM, only where judgment is needed] -> validation rules
 | Client approves a change order | A scope v2 and a proposal to bill the change order | No (rule) | `services/change_orders.py`, `agent/rules.py` |
 | PayPal reports `PAID` | The milestone settles and the next one unlocks (logged, not a money action) | No | `services/invoices.py`, `services/invoice_sync.py` |
 
-The model handles language and judgment. Rules handle money.
+The model handles language and judgment: it interprets the request, and may select a rate-card code and quantity. Rules propose the invoice and compute every amount, the seller approves, and the backend calls PayPal. The model is not sent rate-card prices, but client messages it reads can contain amounts.
 
 ### Proposals
 
@@ -72,17 +72,17 @@ flowchart TB
 ```
 
 1. **Client text is untrusted.** It is passed to the model inside a labeled block, capped in length (6,000 characters), and never used as an instruction by the backend.
-2. **Model output is untrusted.** It is parsed against a schema, then corrected by rules: quotes must appear in the source, hedged claims are demoted, prices come from the rate card, and amounts mentioned in drafts are checked or replaced by placeholders filled from backend numbers (`fill_tokens`). If a model call fails after retries, the app tries a second model, then a code template for reply text, and for the two demo messages a recorded analysis, labeled as cached.
+2. **Model output is untrusted.** A quote check proves the quoted words appear in the message; it does not prove the model's reading, translation, or clause match is right. It is parsed against a schema, then corrected by rules: quotes must appear in the source, hedged claims are demoted, prices come from the rate card, and amounts mentioned in drafts are checked or replaced by placeholders filled from backend numbers (`fill_tokens`). If a model call fails after retries, the app tries a second model, then a code template for reply text, and for the two demo messages a recorded analysis, labeled as cached.
 3. **The model has no tools and no PayPal access.** Only `services/paypal_client.py` holds PayPal credentials.
 4. **A human approves every PayPal write.** The seller approves; the validator checks again at execution time.
 5. **PayPal owns payment truth.** The app marks a milestone settled only after a `GET` returns `PAID`. It never uses the invoice "record payment" endpoint, which would create `MARKED_AS_PAID`.
 6. **Judge Mode** (hosted demo only) adds per-visitor isolation by a signed cookie, a recipient allowlist, rate limits and daily caps on AI requests and invoices, and a request-body cap. Shortcuts never fabricate PayPal state.
 
-What is **not** a boundary: there is no seller authentication in the demo (one seeded seller per visitor), and client acceptance is a click on a link, not an e-signature.
+What is **not** a boundary: there is no seller authentication in the demo (one seeded seller per visitor), and client acceptance is a click on a link. It does not verify identity or provide an e-signature, and we make no claim about enforceability. A model-selected code or quantity can still be approved by a person; the guarantee is that the model cannot execute PayPal writes.
 
 ## Data and state
 
-- **Money** is integer minor units everywhere. The default plan is 30 / 30 / 40 basis points with the remainder on the last milestone ($300.00 gives $90.00, $90.00, $120.00). PayPal amounts are 2-decimal strings.
+- **Money** is integer minor units everywhere. The default plan is 3,000 / 3,000 / 4,000 basis points (30% / 30% / 40%) with the remainder on the last milestone ($300.00 gives $90.00, $90.00, $120.00). PayPal amounts are 2-decimal strings.
 - **Commission**: `DRAFT`, `AWAITING_ACCEPTANCE`, `AGREED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`. Editing an agreed scope bumps the scope version and clears both acceptances.
 - **Milestone**: `LOCKED`, `AWAITING_DELIVERY`, `DELIVERED`, `APPROVED`, `READY_TO_BILL`, `BILLED`, `SETTLED`.
 - **Change order**: `DRAFT`, `SELLER_APPROVED`, `CLIENT_APPROVED`, `DECLINED`, `SUPERSEDED`. Client approval creates a change-order milestone and scope v2.

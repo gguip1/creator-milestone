@@ -131,7 +131,7 @@ export function NewMessagePage() {
                 currency={p?.currency_code ?? "USD"}
                 totalLabel={result.change_order ? "Change order total" : "Billable total"}
                 revisions={p ? { used: p.revisions_used, included: p.revisions_included } : undefined}
-                footnote="Priced from your rate card. AI never sets a price."
+                footnote="Priced from your rate card by code. The AI picks the item and quantity; you review them."
               />
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3">

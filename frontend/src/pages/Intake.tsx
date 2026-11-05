@@ -269,7 +269,7 @@ function IntakeView({ project }: { project: Project }) {
           <Link to={`/projects/${project.id}`} className="inline-flex rounded-md border border-accent bg-accent px-5 py-2.5 font-medium text-on-accent hover:bg-accent-deep">Go to the project</Link>
         </NextCallout>
       ) : !analysis ? (
-        <NextCallout title="Paste the client's first message" why="The agent lists every term it can find, with the exact words it relied on. Use the example message if you do not have one." />
+        <NextCallout title="Paste the client's first message" why="The agent lists every term it can find, with the words it relied on. Check each one yourself. Use the example message if you do not have one." />
       ) : missing.length > 0 ? (
         <NextCallout title="Fill in what the message left open" why={`Still needed: ${missing.join(", ")}. These are your choices, not the agent's.`} />
       ) : (
@@ -352,7 +352,7 @@ function IntakeView({ project }: { project: Project }) {
           )}
           {!analysis ? (
             <p className="mt-4 text-muted">
-              Analyze the message and the agent lists every term it found, with the exact words it relied on.
+              Analyze the message and the agent lists every term it found, with the words it relied on.
             </p>
           ) : (
             <ol className="mt-4 border-t border-line">

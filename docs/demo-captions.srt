@@ -16,7 +16,7 @@ CreatorMilestone is an AI back office for artists like her.
 
 5
 00:00:20,686 --> 00:00:25,400
-The rule is simple: the AI proposes, Jiwoo approves, PayPal executes.
+The rule is simple: AI reads the request, rules propose the invoice, Jiwoo approves, and the backend calls PayPal.
 
 6
 00:00:25,750 --> 00:00:30,036
@@ -40,7 +40,7 @@ She fills the gaps and accepts. The client accepts on their phone. Now both side
 
 11
 00:01:02,643 --> 00:01:09,929
-The agent proposes the deposit invoice. The amount comes from the milestone plan, never from the model.
+Rules propose the deposit invoice. The amount comes from the milestone plan, not from the model.
 
 12
 00:01:10,279 --> 00:01:17,993
@@ -48,11 +48,11 @@ Jiwoo approves, and the backend creates a PayPal invoice with the agreed terms i
 
 13
 00:01:18,343 --> 00:01:26,057
-The sandbox buyer pays, and PayPal reports the invoice paid. Only then does the app settle the milestone.
+The sandbox buyer pays this invoice on PayPal's page, and PayPal reports it paid.
 
 14
 00:01:26,407 --> 00:01:33,693
-To save time here, a shortcut reuses an invoice paid earlier, and the app still asks PayPal.
+Only then does the app settle the milestone.
 
 15
 00:01:34,043 --> 00:01:41,329
@@ -64,7 +64,7 @@ Scope Guard checks the agreement. The outfit is out of scope. The face edit exce
 
 17
 00:01:54,457 --> 00:02:01,743
-Extras are priced from Jiwoo's rate card, a hundred dollars total. The AI never sets a price.
+Extras are priced from Jiwoo's rate card, a hundred dollars total. Code sets the price; Jiwoo reviews it.
 
 18
 00:02:02,093 --> 00:02:08,093
@@ -72,15 +72,15 @@ Jiwoo approves, and the client approves on their page. That creates scope versio
 
 19
 00:02:08,443 --> 00:02:16,157
-The agent proposes a second invoice, one line per extra. Jiwoo approves, and it goes out through PayPal.
+Rules propose a second invoice, one line per extra. Jiwoo approves, and it goes out through PayPal.
 
 20
 00:02:16,507 --> 00:02:24,650
-Gemini reads and drafts. Rules compute the money. A validator checks every PayPal write, and 466 automated tests pass.
+Gemini reads and drafts. Rules compute the money. A validator checks every PayPal write, and automated tests pass.
 
 21
 00:02:25,000 --> 00:02:28,429
-Sandbox only, messages are pasted, one seller account.
+The AI is checked on a small labeled set. Sandbox only, messages are pasted, one seller account.
 
 22
 00:02:28,779 --> 00:02:34,779

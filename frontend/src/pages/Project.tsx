@@ -120,10 +120,10 @@ function nextFor(project: Project): Next {
   }
   const coWaiting = project.change_orders.find((c) => c.status === "SELLER_APPROVED");
   if (coWaiting)
-    return { title: `Wait for the client to approve change order #${coWaiting.number}`, why: "Share the client page so they can approve it. Then the agent proposes the invoice.", to: project.client_path, external: true, cta: "Open the client page" };
+    return { title: `Wait for the client to approve change order #${coWaiting.number}`, why: "Share the client page so they can approve it. Then a bill proposal appears for you to review.", to: project.client_path, external: true, cta: "Open the client page" };
   const toDeliver = project.milestones.find((m) => m.workflow_state === "AWAITING_DELIVERY");
   if (toDeliver)
-    return { title: `Share “${toDeliver.title}” with the client`, why: "Log it as shared, with a link and a note. The client then approves it and the agent proposes the invoice.", anchor: "#milestones-h", cta: "Go to the milestone" };
+    return { title: `Share “${toDeliver.title}” with the client`, why: "Log it as shared, with a link and a note. The client then approves it and a bill proposal appears.", anchor: "#milestones-h", cta: "Go to the milestone" };
   const delivered = project.milestones.find((m) => m.workflow_state === "DELIVERED");
   const revisionsLeft = (project.revisions_included ?? 0) - project.revisions_used;
   if (delivered && revisionsLeft > 0 && project.change_orders.length === 0 && /sketch/i.test(delivered.title))
@@ -133,7 +133,7 @@ function nextFor(project: Project): Next {
       logRevision: true,
     };
   if (delivered)
-    return { title: `Wait for the client to approve “${delivered.title}”`, why: "The agent proposes the invoice as soon as they approve it on their page.", to: project.client_path, external: true, cta: "Open the client page" };
+    return { title: `Wait for the client to approve “${delivered.title}”`, why: "A bill proposal appears as soon as they approve it on their page.", to: project.client_path, external: true, cta: "Open the client page" };
   if (awaitingPayment(project))
     return { title: "Wait for the client to pay", why: "Open the invoice as the sandbox buyer, or press Check PayPal now. Status always comes from PayPal.", anchor: "#milestones-h", cta: "See the milestones" };
   if (project.status === "COMPLETED") return { title: "The commission is complete", why: "Every stage is billed and settled. Nothing is waiting." };
@@ -386,7 +386,7 @@ function Milestones({ project }: { project: Project }) {
           break;
         case "DELIVERED":
           chip = <Chip icon={<Hourglass size={15} aria-hidden />}>Shared, awaiting client approval</Chip>;
-          detail = "Agent proposes the invoice when the client approves";
+          detail = "A bill proposal appears when the client approves";
           icon = <Dot />;
           break;
         default:
