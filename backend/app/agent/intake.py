@@ -125,9 +125,9 @@ nothing about usage or licensing, it is unknown.
 - budget: value as currency code plus amount, such as "USD 300". Copy the client's currency.
 - client_email: only an address written in the message.
 - sketch_review_requested: value "yes" if the client asks for a sketch or draft review.
-- other_questions: at most 3 clarifying questions in English for the client to answer, only about \
-ambiguity NOT covered by the fields above. Usually empty. Never repeat a question the client \
-asked, never ask about payment, and never mention prices.
+- other_questions: at most 3 clarifying questions, written in the client's own language, for the \
+client to answer, only about ambiguity NOT covered by the fields above. Usually empty. Never \
+repeat a question the client asked, never ask about payment, and never mention prices.
 """
 
 REPLY_SYSTEM = """\
@@ -203,6 +203,22 @@ _QUESTIONS_WHEN_UNCONFIRMED = {
     "usage_rights": "Can you confirm how the artwork will be used?",
     "budget": "Can you confirm your budget in US dollars?",
     "client_email": "Can you confirm the email address for invoices?",
+}
+_QUESTIONS_WHEN_MISSING_KO = {
+    "deliverables": "정확히 어떤 결과물이 필요하신가요?",
+    "file_formats": "어떤 파일 형식이 필요하신가요?",
+    "deadline": "최종 작품은 언제까지 필요하신가요?",
+    "revisions": "수정은 몇 차례까지 포함할까요?",
+    "usage_rights": "작품은 어떻게 사용하실 예정인가요? (개인용 또는 상업용)",
+    "budget": "예산은 미화(USD) 기준으로 얼마인가요?",
+    "client_email": "인보이스를 받을 이메일 주소를 알려 주세요.",
+}
+_QUESTIONS_WHEN_UNCONFIRMED_KO = {
+    "deadline": "마감일을 확정해 주실 수 있나요?",
+    "revisions": "포함할 수정 횟수를 확정해 주실 수 있나요?",
+    "usage_rights": "작품의 사용 방식을 확정해 주실 수 있나요?",
+    "budget": "예산(USD)을 확정해 주실 수 있나요?",
+    "client_email": "인보이스를 받을 이메일 주소를 확인해 주실 수 있나요?",
 }
 _USAGE_WORDS = re.compile(
     r"\bus(?:e|es|ed|ing|age)\b|licen[sc]e|commercial|personal|merch|stream|print|rights|resale"
@@ -406,8 +422,11 @@ def apply_intake_rules(
         and not find_money_mentions(question)
         and not _PAYMENT_TOPIC.search(question)
     ]
-    questions = [_QUESTIONS_WHEN_MISSING[term] for term in _missing_terms(analysis)]
-    questions += [_QUESTIONS_WHEN_UNCONFIRMED[term] for term in _unconfirmed_terms(analysis)]
+    korean = analysis.source_language == "ko"
+    when_missing = _QUESTIONS_WHEN_MISSING_KO if korean else _QUESTIONS_WHEN_MISSING
+    when_unconfirmed = _QUESTIONS_WHEN_UNCONFIRMED_KO if korean else _QUESTIONS_WHEN_UNCONFIRMED
+    questions = [when_missing[term] for term in _missing_terms(analysis)]
+    questions += [when_unconfirmed[term] for term in _unconfirmed_terms(analysis)]
     return analysis.model_copy(update={"questions": [*questions, *extras]})
 
 
