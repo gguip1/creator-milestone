@@ -3,7 +3,7 @@ import { Check, ExternalLink, X } from "lucide-react";
 import { useParams } from "react-router";
 import { Button, Chip, ErrorNote, Loading, Mono, SandboxBanner } from "../components/ui";
 import { api, type ClientChangeOrder, type ClientMilestone, type ClientView } from "../lib/api";
-import { formatDate, formatMoney, percent } from "../lib/format";
+import { formatDate, formatMoney } from "../lib/format";
 import { CLAUSE_LABEL, paypalStatus } from "../lib/status";
 
 export function ClientPage() {
@@ -175,8 +175,7 @@ function MilestoneRow({ m, currency, onApprove, pending }: { m: ClientMilestone;
     <li className="border-b border-line py-4">
       <div className="flex items-baseline justify-between gap-4">
         <h3 className="text-[20px] font-semibold">
-          {m.title}{" "}
-          {m.kind === "plan" && m.amount_minor_units > 0 && null}
+          {m.title}
         </h3>
         <Mono className="text-[18px]">{formatMoney(m.amount_minor_units, currency)}</Mono>
       </div>
