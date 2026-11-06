@@ -6,9 +6,9 @@ import { Marker, ProvChip, provKind, provMark, type ProvKind } from "../componen
 import { AiProgress, AppShell, Button, CharCount, Chip, cx, ErrorNote, ExampleRow, Loading, Mono, NextCallout, PageTitle } from "../components/ui";
 import { api, ApiError, type ExtractedField, type IntakeAnalysis, type MilestonePlanEntry, type Project } from "../lib/api";
 import { EXAMPLE_INTAKE } from "../lib/examples";
-import { formatDate, formatMoney, moneyInput, parseMoney } from "../lib/format";
+import { formatDate, formatMoney, lineBreaks, moneyInput, parseMoney } from "../lib/format";
 import { copyText, useProject } from "../lib/hooks";
-import { MissingProject } from "./Project";
+import { DemoJumps, MissingProject } from "./Project";
 
 /** English name of an ISO 639-1 label from the analysis, never assumed to be English. */
 function languageName(code: string): string {
@@ -256,6 +256,12 @@ function IntakeView({ project }: { project: Project }) {
   const analyzeError = analyze.error instanceof ApiError ? analyze.error : null;
   const kindOf = (key: string): ProvKind | undefined => rows.find((r) => r.key === key)?.kind;
 
+  const toScopeForm = (
+    <Button variant="secondary" onClick={() => document.getElementById("scope-h")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+      Go to the scope form and plan
+    </Button>
+  );
+
   return (
     <>
       <div>
@@ -271,10 +277,15 @@ function IntakeView({ project }: { project: Project }) {
       ) : !analysis ? (
         <NextCallout title="Paste the client's first message" why="The agent lists every term it can find, with the words it relied on. Check each one yourself. Use the example message if you do not have one." />
       ) : missing.length > 0 ? (
-        <NextCallout title="Fill in what the message left open" why={`Still needed: ${missing.join(", ")}. These are your choices, not the agent's.`} />
+        <NextCallout title="Fill in what the message left open" why={`Still needed: ${missing.join(", ")}. These are your choices, not the agent's.`}>
+          {toScopeForm}
+        </NextCallout>
       ) : (
-        <NextCallout title="Accept the scope and share it with the client" why="Both of you accept before any invoice is made. Accepting sends no money." />
+        <NextCallout title="Accept the scope and share it with the client" why="Both of you accept before any invoice is made. Accepting sends no money.">
+          {toScopeForm}
+        </NextCallout>
       )}
+      {!locked && <DemoJumps project={project} />}
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 min-[1000px]:grid-cols-2">
         <section aria-labelledby="msg-h" className="rounded-lg border border-line p-6 sm:p-8">
@@ -380,7 +391,7 @@ function IntakeView({ project }: { project: Project }) {
         <section aria-labelledby="reply-h" className="mt-6 rounded-lg border border-line p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="reply-h" className="eyebrow">Clarifying reply draft</h2>
-            <Button variant="secondary" icon={<Copy size={17} aria-hidden />} onClick={async () => setCopied(await copyText(analysis.reply_draft_client))}>
+            <Button variant="secondary" icon={<Copy size={17} aria-hidden />} onClick={async () => setCopied(await copyText(lineBreaks(analysis.reply_draft_client)))}>
               {copied ? "Copied" : "Copy reply"}
             </Button>
           </div>
@@ -389,12 +400,12 @@ function IntakeView({ project }: { project: Project }) {
               <p className="text-[14px] text-muted">
                 {languageName(analysis.source_language)}: goes to the client{showTranslation ? "" : " (same language as yours, so no translation is needed)"}
               </p>
-              <p className={cx("mt-2 whitespace-pre-wrap text-[16px] leading-relaxed", analysis.source_language === "ko" && "font-ko leading-[1.6]")}>{analysis.reply_draft_client}</p>
+              <p className={cx("mt-2 whitespace-pre-wrap text-[16px] leading-relaxed", analysis.source_language === "ko" && "font-ko leading-[1.6]")}>{lineBreaks(analysis.reply_draft_client)}</p>
             </div>
             {showTranslation && (
               <div lang="ko" className="min-[1000px]:pl-6">
                 <p className="font-sans text-[14px] text-muted">한국어: Jiwoo's translation, not sent</p>
-                <p className="mt-2 whitespace-pre-wrap font-ko text-[16px] leading-[1.6]">{analysis.reply_draft_seller_translation}</p>
+                <p className="mt-2 whitespace-pre-wrap font-ko text-[16px] leading-[1.6]">{lineBreaks(analysis.reply_draft_seller_translation)}</p>
               </div>
             )}
           </div>
@@ -409,7 +420,7 @@ function IntakeView({ project }: { project: Project }) {
       <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 min-[1000px]:grid-cols-2">
         <section aria-labelledby="scope-h" className="rounded-lg border border-line p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="scope-h" className="eyebrow">Scope, ready to edit</h2>
+            <h2 id="scope-h" className="eyebrow scroll-mt-4">Scope, ready to edit</h2>
             <p className="font-mono text-[14px] text-neutral">Scope v{project.scope_version}, draft</p>
           </div>
           <div className="mt-5 grid gap-x-4 gap-y-5 sm:grid-cols-2">

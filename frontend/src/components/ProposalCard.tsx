@@ -166,7 +166,7 @@ export function ProposalCard({ proposal: p, project }: { proposal: Proposal; pro
         </div>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
           <p className="max-w-[56ch] text-[15px] leading-6 text-muted">
-            {failed ? (p.error_message ?? "PayPal could not complete this step.") : p.rationale}
+            {failed ? (p.error_message ?? "PayPal could not complete this step.") : executed && p.kind === "SEND_INVOICE" ? "The invoice was sent to the client through PayPal." : p.rationale}
           </p>
           <div>
             {waiting && <Chip tone="accent" icon="help">Waiting for your approval</Chip>}

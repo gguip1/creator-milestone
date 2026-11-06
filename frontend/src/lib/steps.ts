@@ -25,11 +25,12 @@ export function stepFacts(project: Project | undefined) {
 export function projectSteps(id: string, project: Project | undefined): Step[] {
   const f = stepFacts(project);
   // A step is locked until the one before it holds, and is never Done while locked.
+  // Guarding needs only an agreed scope: the deposit is a separate milestone, so an unpaid deposit never locks it.
   const raw: { label: string; to: string; done: boolean; locked: boolean }[] = [
     { label: "Read the request", to: `/projects/${id}/intake`, done: f.read, locked: false },
     { label: "Agree the scope", to: f.agreed ? `/projects/${id}` : `/projects/${id}/intake`, done: f.agreed, locked: !f.read },
     { label: "Bill a milestone", to: `/projects/${id}`, done: f.billed, locked: !f.agreed },
-    { label: "Guard the scope", to: `/projects/${id}/messages/new`, done: f.guarded, locked: !f.billed },
+    { label: "Guard the scope", to: `/projects/${id}/messages/new`, done: f.guarded, locked: !f.agreed },
   ];
   let currentSet = false;
   return raw.map((r, i) => {

@@ -394,8 +394,14 @@ def reply_problems(
     return problems
 
 
+def tidy_draft(draft: str) -> str:
+    """Fix two model slips that are never intended: escaped line breaks written as text, and the
+    doubled Korean future ending "겠겠" (no Korean ending repeats 겠)."""
+    return draft.replace("\\r\\n", "\n").replace("\\n", "\n").replace("겠겠", "겠")
+
+
 def fill_tokens(draft: str, tokens: Mapping[str, int], currency_code: str = "USD") -> str:
     def replace(match: re.Match[str]) -> str:
         return format_money(tokens[match.group(1)], currency_code)
 
-    return _TOKEN.sub(replace, draft).replace("$$", "$")
+    return tidy_draft(_TOKEN.sub(replace, draft).replace("$$", "$"))

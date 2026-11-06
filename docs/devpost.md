@@ -22,7 +22,7 @@ Comparisons use each product's public help pages, which we could not all open fr
 
 ## The problem
 
-Commission artists already write terms of service to head off "just one more change". Public guides and artists' own pages repeat the same rules: a limited number of revisions, extra fees for additions (for example $15 per extra revision), commercial use priced separately (1.5x to 2x the base price), and a deposit up front. One guide to commission terms names scope creep, ghosting, chargebacks, and surprise usage such as merchandise as the problems those terms are written to prevent. Sources: [Don Corgi](https://doncorgi.com/blog/art-commission-terms-of-service/), [Artists Aware](https://artistsaware.com/art-commissions/sample-tos-detailed/), [cjkkjh](https://www.cjkkjh.com/commissions-terms-and-conditions), [tapirclip](https://tapirclip.substack.com/p/tos); more in `docs/problem-research.md`.
+Commission artists already write terms of service to head off "just one more change". Public guides and artists' own pages repeat the same rules: a limited number of revisions, extra fees for additions (for example a flat $60 after one free revision round), commercial use priced separately (for example 1.5x the base price), and a deposit up front. One guide to commission terms names scope creep, ghosting, chargebacks, and surprise usage such as merchandise as the problems those terms are written to prevent. Sources: [Don Corgi](https://doncorgi.com/blog/art-commission-terms-of-service/), [Artists Aware](https://artistsaware.com/art-commissions/sample-tos-detailed/), [cjkkjh](https://www.cjkkjh.com/commissions-terms-and-conditions), [SylviaPaints](https://www.sylviasykesart.com/blog/sample-artist-commission-contract); more in `docs/problem-research.md`.
 
 That shows the structure we model is how artists already work. The gap is that those terms sit in a document the client may not read, while the real agreement happens in a chat, often across languages. When the client later asks for "one more outfit", the artist either does it for free or has the awkward conversation about charging.
 
@@ -59,7 +59,7 @@ This is a sandbox demo. It is not escrow, buyer protection, or a marketplace. De
 - **Proposals:** every PayPal write is a typed proposal with an idempotent, atomically claimed approval, staleness detection against the scope version, and a validator that checks recipient, amount, state, and duplicates against our own rows.
 - **Frontend:** React, TypeScript, Vite, and Tailwind. One project screen holds the timeline and the agent's waiting card; a separate mobile client page handles acceptance and change-order approval.
 - **Judge Mode:** the hosted demo gives each visitor an isolated project and enforces a sandbox recipient allowlist and request and spend limits.
-- **Verification:** 471 automated tests (`uv run pytest -q` in `backend/`, fake PayPal and fake LLM, no network), plus real sandbox runs recorded in `docs/paypal-test-log.md`: a sandbox buyer paid both a deposit invoice and a two-line change-order invoice, and the app read both back as PAID.
+- **Verification:** 472 automated tests (`uv run pytest -q` in `backend/`, fake PayPal and fake LLM, no network), plus real sandbox runs recorded in `docs/paypal-test-log.md`: a sandbox buyer paid both a deposit invoice and a two-line change-order invoice, and the app read both back as PAID.
 
 ## Challenges we ran into
 
@@ -120,17 +120,17 @@ The product decisions, the trust model, and the choice of what the AI may and ma
 **Hosted demo (no setup):** open https://creator-milestone.onrender.com. It runs on a free host and can take about a minute to wake on the first visit. It is PayPal sandbox only; no real money moves.
 
 1. Click **Try the demo**. You get your own isolated project.
-2. On the intake screen, press **Paste example**, then **Analyze**. Review the evidence, the flagged terms, and the reply draft. (If the free AI tier is unavailable, the screen shows a "Cached analysis" label and serves a recorded result for this example message.)
-3. For a quick path, on the project screen use **Jump to: deposit paid**. It fills sample terms, records both acceptances, and reuses an earlier sandbox payment; it does not pay the current invoice. It does not fake PayPal state: the backend asks PayPal and shows "Paid via PayPal" only if that invoice reads PAID for the deposit amount.
-4. Go to **New message**, use the follow-up example, and run Scope Guard. Review the change-order card. Use **Open** next to the client page link to approve as the client (works on a phone-width window).
-5. To see real PayPal billing, approve the bill card, then the send card. This creates a real sandbox invoice and is limited per visitor and per day. Open the invoice's PayPal link and pay with the sandbox buyer below. The app shows "Paid via PayPal" after PayPal reports PAID; use the refresh control if you do not want to wait for polling.
+2. On the intake screen, click **Use example message**, then **Analyze**. Review the evidence, the flagged terms, and the reply draft. (If the free AI tier is unavailable, the screen shows a "Cached analysis" label and serves a recorded result for this example message.)
+3. Quick path: on the intake or project screen, click the Judge Mode shortcut **Jump to: deposit paid** (or **Jump to: sketch shared**, which also logs the two revisions). It fills sample terms, records both acceptances, and reuses an earlier sandbox payment; it does not pay the current invoice. It does not fake PayPal state: the backend asks PayPal and shows "Paid via PayPal" only if that invoice reads PAID for the deposit amount. Full path without the shortcut: click **Go to the scope form and plan**, **Fill example values**, **Accept scope v1 and share with client**; click **Open the client page** and **Accept scope v1** there; return to the project screen.
+4. On the project screen click **Log a revision** twice (skip this if you used **Jump to: sketch shared**), then click **Guard the scope** in the step bar. It is available as soon as the scope is agreed, even with the deposit unpaid. Click **Use example message 2**, then **Check against scope**, and review the change-order card. Click **Review change order #1**, then **Approve**. Click **Open** next to the client link and **Approve change order** there (works on a phone-width window).
+5. To see real PayPal billing, click **Approve** on the "Bill change order #1" card, then **Send invoice**. This creates a real sandbox invoice and is limited per visitor and per day. Open the invoice's PayPal link and pay with the sandbox buyer below. The app shows "Paid via PayPal" after PayPal reports PAID; click **Check PayPal now** if you do not want to wait for polling.
 
 **Sandbox buyer login (PayPal sandbox only):**
 - Email: `<SANDBOX BUYER LOGIN>`
 - Password: `<SANDBOX BUYER PASSWORD>`
 - Log in at https://www.sandbox.paypal.com when the invoice page asks. Use a private window if you are signed in to a real PayPal account.
 
-**Run it yourself:** see the README. `docker compose up --build` or `uv` plus `npm`, with a sandbox REST app that has Invoicing enabled and a non-Korean sandbox buyer. Tests: `cd backend && uv run pytest -q` (471 passed).
+**Run it yourself:** see the README. `docker compose up --build` or `uv` plus `npm`, with a sandbox REST app that has Invoicing enabled and a non-Korean sandbox buyer. Tests: `cd backend && uv run pytest -q` (472 passed).
 
 **Known limits:** demo acceptance does not verify identity or provide an e-signature; messages are pasted, not integrated; one seller account; Korean-to-Korean PayPal transactions are not possible; the deposit shortcut reuses an earlier sandbox payment and does not pay the current invoice; only English and Korean were tested; the free host may take about a minute to wake; the free AI tier can return recorded demo analyses, which are labeled.
 
