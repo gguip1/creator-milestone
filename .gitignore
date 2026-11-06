@@ -30,3 +30,6 @@ frontend/dist/
 video/out/
 video/raw/
 video/.venv/
+
+# Local design source (pen.dev); kept out of the repository
+design/*.pen
