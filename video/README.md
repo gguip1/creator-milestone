@@ -3,7 +3,18 @@
 Turns `docs/demo-script.md`, `docs/narration.txt` and `docs/demo-captions.srt` into
 `out/creator-milestone-demo.mp4` (H.264, 1920x1080, 30 fps, AAC, under 2:50, no music).
 Everything on screen is real browser rendering (Chromium via Playwright, device scale factor 1).
-The client page is a real 390 px wide page, shown in a phone-sized frame.
+The client page is a real 390 px wide recording, composited over a dimmed freeze of the seller screen with a title above it.
+
+## Composition
+
+- The 1920x1080 frame is a 1920x930 app area plus a 150 px black caption band. Nothing is drawn over the app.
+- The band holds the captions, one short callout, and small badges: "PayPal sandbox, no real money" (always, right corner),
+  "DRAFT: dry run" (dry runs only), "Recorded AI result (saved)" (only when the app itself showed a cached result),
+  "Sped up 1.25x" (only when applied) and "Wait cut" (only while a cut wait is on screen).
+- The app is rendered at 125% (CSS zoom on `body`, so the cursor is unaffected) so body text reads at 1080p.
+- `record.py` notes the box of every element it dwells on; `assemble.py` crop-zooms to it with smoothstep easing
+  (up to 1.45x on top of the 125%), frame by frame with sub-pixel crops.
+- Narration length sets the shot length. Longer footage is sped up at most 1.25x (labelled); shorter footage holds its last frame.
 
 `raw/` (footage, narration audio) and `out/` (video, frames) are git-ignored. Never commit them.
 
@@ -91,7 +102,7 @@ Safeguards in the recorder:
    last sentence of S6 and its caption (rule 3 in the script).
 5. **Narration**: run `tts.py` before `assemble.py`. Check the pace by ear, especially that the voice
    does not read the style instruction aloud (the fallback model did in testing, so it now gets bare text).
-   The Gemini free quota ran out during the dry run (`429`); use a key with quota.
+   The Gemini free quota ran out during the dry run (`429`); `tts.py` now stops on a 429. Use a key with quota. Cached shots are never regenerated.
 6. **Fit**: read the table `assemble.py` prints. A shot needing more than 1.5x is flagged "does not fit";
    shorten that shot's holds in `record.py` rather than letting it run long. Sped-up and cut spans are
    labelled on screen.
