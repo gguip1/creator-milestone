@@ -3,7 +3,7 @@
     uv run python assemble.py
 
 Per shot: slice and normalise the footage to 1920x1080 at 30 fps (idle waits shortened, cuts removed),
-fit it to the shot window (speed up at most 1.5x, with a visible label), overlay the sandbox label, the
+let the narration length set the shot length (footage sped up at most 1.25x, with a small label), overlay the sandbox label, the
 on-screen text and the captions, and pad the narration to the shot length. Shots are concatenated, a 2 s
 end card is added, and the audio is encoded once as AAC. No music.
 
@@ -13,16 +13,22 @@ mov_text track), out/captions.srt (retimed to this cut, for YouTube) and out/tim
 
 import json
 import shutil
+import subprocess
 import wave
 from pathlib import Path
 
-from cards import (caption, end_card, lower_third, phone_background, placeholder_card, s9_card,
-                   static_overlay, tag)
-from common import (FPS, OUT, RAW, SHOT_TEXT, duration, ensure_dirs, frame_ceil, need, parse_narration,
+from cards import (band_callout, band_static, caption, end_card, phone_background, placeholder_card,
+                   s9_card, tag)
+from PIL import Image
+
+from common import (FPS, H, W, OUT, RAW, SHOT_TEXT, duration, ensure_dirs, frame_ceil, need, parse_narration,
                     parse_srt, parse_timing, run)
 
 SHOTS = [f"S{i}" for i in range(1, 10)]
-MAX_SPEED = 1.5
+MAX_SPEED = 1.25  # narration length drives the shot length; footage is never sped up beyond this
+AH = 930  # app area height; the 150 px band below holds captions and badges
+ZOOM_MAX = 1.45
+EASE = 0.8
 IDLE_KEEP = 0.5  # seconds of an idle wait that stay in, under a "Wait cut" tag
 TAIL = 0.5  # silence after the narration ends
 END_CARD = 2.0
@@ -41,8 +47,64 @@ def merge(spans: list[list[float]]) -> list[list[float]]:
     return out
 
 
-def prepare_footage(seg: dict, dest: Path, work: Path) -> tuple[float, list[float], float]:
-    """Cut one manifest segment to a 1920x1080 30 fps clip. Returns (seconds, wait-cut label times, raw seconds)."""
+def smooth(x: float) -> float:
+    x = max(0.0, min(1.0, x))
+    return x * x * (3 - 2 * x)
+
+
+def zoom_curve(focus: list[list[float]], total: float):
+    """Keyframes (t, zoom, cx, cy) with smoothstep easing between them, from [t0, t1, x, y, w, h] boxes."""
+    base = (1.0, W / 2, AH / 2)
+    keys = [(0.0, *base)]
+    for t0, t1, x, y, w, h in sorted(focus):
+        z = max(1.0, min(ZOOM_MAX, 0.9 * W / max(w, 1), 0.9 * AH / max(h, 1)))
+        cx = min(max(x + w / 2, W / (2 * z)), W - W / (2 * z))
+        cy = min(max(y + h / 2, AH / (2 * z)), AH - AH / (2 * z))
+        t0 = max(t0, keys[-1][0] + 0.05)
+        keys.append((t0, *keys[-1][1:]))
+        keys.append((t0 + EASE, z, cx, cy))
+        keys.append((max(t1, t0 + EASE + 0.1), z, cx, cy))
+    keys.append((keys[-1][0] + EASE, *base))
+
+    def at(t: float) -> tuple[float, float, float]:
+        for (ta, *va), (tb, *vb) in zip(keys, keys[1:]):
+            if ta <= t < tb:
+                k = smooth((t - ta) / (tb - ta))
+                return tuple(p + (q - p) * k for p, q in zip(va, vb))
+        return keys[-1][1:]
+    return at
+
+
+def apply_zoom(src: Path, dst: Path, focus: list[list[float]]) -> None:
+    """Smooth crop-zoom, frame by frame, with sub-pixel crop boxes so the motion does not jitter."""
+    ff = need("ffmpeg")
+    total = duration(src)
+    at = zoom_curve(focus, total)
+    dec = subprocess.Popen([ff, "-v", "error", "-i", str(src), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                           stdout=subprocess.PIPE)
+    enc = subprocess.Popen([ff, "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{AH}",
+                            "-r", str(FPS), "-i", "-", *ENC, str(dst)], stdin=subprocess.PIPE)
+    size = W * AH * 3
+    n = 0
+    while True:
+        buf = dec.stdout.read(size)
+        if len(buf) < size:
+            break
+        z, cx, cy = at(n / FPS)
+        img = Image.frombytes("RGB", (W, AH), buf)
+        if z > 1.001:
+            hw, hh = W / (2 * z), AH / (2 * z)
+            img = img.resize((W, AH), Image.BICUBIC, box=(cx - hw, cy - hh, cx + hw, cy + hh))
+        enc.stdin.write(img.tobytes())
+        n += 1
+    enc.stdin.close()
+    dec.stdout.close()
+    if enc.wait() or dec.wait():
+        raise SystemExit("zoom pass failed")
+
+
+def prepare_footage(seg: dict, dest: Path, work: Path, prev_clip: Path | None) -> tuple[float, list[float], float]:
+    """Cut one manifest segment to a 1920x930 30 fps clip. Returns (seconds, wait-cut label times, raw seconds)."""
     ff = need("ffmpeg")
     src = RAW / seg["file"]
     a = seg["in"]
@@ -60,25 +122,34 @@ def prepare_footage(seg: dict, dest: Path, work: Path) -> tuple[float, list[floa
     chain = f"{trim},fps={FPS},select='{expr}',setpts=N/({FPS}*TB)"
     cmd = [ff, "-y", "-i", str(src)]
     if seg["kind"] == "phone":
-        bg = work / "phone-bg.png"
-        phone_background(bg)
+        # Real 390 px recording over a dimmed freeze of the seller's screen, with a title above it.
+        frame = work / f"{dest.stem}-prev.png"
+        if prev_clip:
+            run([ff, "-y", "-sseof", "-0.2", "-i", str(prev_clip), "-frames:v", "1", str(frame)])
+        bg = work / f"{dest.stem}-bg.png"
+        phone_background(bg, frame if prev_clip else None)
         cmd += ["-loop", "1", "-i", str(bg), "-filter_complex",
-                f"[0:v]{chain},scale=468:1013:flags=lanczos[ph];[1:v][ph]overlay=(W-w)/2:(H-h)/2+24:shortest=1,format=yuv420p[v]"]
+                f"[0:v]{chain}[ph];[1:v][ph]overlay=1230:76:shortest=1,format=yuv420p[v]"]
     else:
-        cmd += ["-filter_complex", f"[0:v]{chain},scale=1920:1080:flags=lanczos,format=yuv420p[v]"]
-    run(cmd + ["-map", "[v]", *ENC, str(dest)])
-    # Where the "Wait cut" tags go, in the clip's own time.
-    labels = []
-    for s in labels_src:
-        rel = s - a
-        before = sum(min(y, rel) - x for x, y in removed if x < rel)
-        labels.append(round(rel - before, 3))
+        cmd += ["-filter_complex", f"[0:v]{chain},scale=1920:{AH}:flags=lanczos,format=yuv420p[v]"]
+    out = dest if not (seg.get("focus") and seg["kind"] != "phone") else dest.with_name(dest.stem + "-pre.mp4")
+    run(cmd + ["-map", "[v]", *ENC, str(out)])
+
+    def to_out(t: float) -> float:
+        rel = t - a
+        return rel - sum(min(y, rel) - x for x, y in removed if x < rel)
+
+    if out != dest:
+        focus = [[to_out(f[0]), to_out(f[1]), *f[2:]] for f in seg["focus"]
+                 if not any(x <= f[0] - a < y for x, y in removed)]
+        apply_zoom(out, dest, focus) if focus else shutil.copy(out, dest)
+    labels = [round(to_out(s), 3) for s in labels_src]
     return duration(dest), labels, raw_len
 
 
-def still_clip(png: Path, seconds: float, dest: Path) -> None:
+def still_clip(png: Path, seconds: float, dest: Path, height: int = 1080) -> None:
     run([need("ffmpeg"), "-y", "-loop", "1", "-framerate", str(FPS), "-t", f"{seconds:.3f}", "-i", str(png),
-         "-vf", "format=yuv420p", *ENC, str(dest)])
+         "-vf", f"scale=1920:{height},format=yuv420p", *ENC, str(dest)])
 
 
 def concat(files: list[Path], dest: Path, listfile: Path) -> None:
@@ -134,16 +205,19 @@ def main() -> None:
         raw_total = 0.0
         L = 0.0
         flags = {k for m in segs for k in ("cached",) if m.get(k)}
+        prev_desktop: Path | None = None
         for i, seg in enumerate(segs):
             dest = work / f"{shot}-seg{i}.mp4"
             if seg["kind"] == "placeholder":
                 png = work / f"{shot}-ph.png"
                 placeholder_card(png, seg["text"], seg["sub"])
                 length = max(N + TAIL, 3.0)
-                still_clip(png, length, dest)
+                still_clip(png, length, dest, AH)
                 dur, lab, raw = length, [], length
             else:
-                dur, lab, raw = prepare_footage(seg, dest, work)
+                dur, lab, raw = prepare_footage(seg, dest, work, prev_desktop)
+                if seg["kind"] != "phone":
+                    prev_desktop = dest
             waits += [L + x for x in lab]
             L += dur
             raw_total += raw
@@ -151,49 +225,46 @@ def main() -> None:
 
         has_card = shot == "S9"
         notes: list[str] = []
+        # Narration length drives the shot length. Footage longer than that is sped up, at most MAX_SPEED;
+        # shorter footage holds its last frame.
         if has_card:
-            T = max(win, N + TAIL, L + 2.0)
-            speed = 1.0
-        elif L <= win:
-            T, speed = max(L, N + TAIL), 1.0
+            T, speed = max(N + TAIL, L + 3.0), 1.0
         else:
-            speed = min(L / win, MAX_SPEED)
-            T = max(L / speed, N + TAIL)
-            if L / win > MAX_SPEED:
-                notes.append(f"does not fit: footage {L:.1f}s needs {L / win:.2f}x to fit the {win}s window; "
-                             f"capped at {MAX_SPEED}x, shot runs {T:.1f}s")
+            T = max(N + TAIL, L / MAX_SPEED)
+            speed = max(1.0, L / T)
+            if L / MAX_SPEED > N + TAIL:
+                notes.append(f"footage {L:.1f}s is longer than narration {N:.1f}s + tail; sped to {MAX_SPEED}x, "
+                             f"shot runs {T:.1f}s with silent action at the end")
         T = frame_ceil(T)
         if has_card:
             card_png = work / "s9-card.png"
             s9_card(card_png)
             card = work / "S9-card.mp4"
-            still_clip(card_png, frame_ceil(T - L) + 0.0, card)
+            still_clip(card_png, frame_ceil(T - L), card, AH)
             clips.append(card)
         raw_path = work / f"{shot}-raw.mp4"
         concat(clips, raw_path, work / f"{shot}.txt")
         footage = duration(raw_path)
         pad = max(0.0, T - footage / speed)
 
-        # Overlays.
-        extras = []
+        # Band layers: one small sandbox badge, tags only when they apply, a short callout, captions.
+        tags = []
         if run_info["mode"] == "dry":
-            extras.append("DRAFT — dry run on fake runner")
-        if "cached" in flags:
-            extras.append("Recorded AI result (saved analysis)")
+            tags.append("DRAFT: dry run")
+        if any(m.get("cached") for m in segs):
+            tags.append("Recorded AI result (saved)")
+        if speed > 1.02:
+            tags.append(f"Sped up {speed:.2f}x")
         if shot in estimated:
-            extras.append("Narration missing in draft")
+            tags.append("Narration missing in draft")
         static = work / f"{shot}-static.png"
-        static_overlay(static, None, extras)
+        band_static(static, tags)
         layers: list[tuple[Path, float, float]] = [(static, 0, T)]
         texts = [t.format(num=number) for t in SHOT_TEXT[shot]]
         for k, text in enumerate(texts):
             p = work / f"{shot}-lt{k}.png"
-            lower_third(p, text)
-            layers.append((p, 0.4 + k * T / len(texts) if k else 0.4, (k + 1) * T / len(texts)))
-        if speed > 1.02:
-            p = work / f"{shot}-speed.png"
-            tag(p, f"Sped up {speed:.1f}x")
-            layers.append((p, 0, T))
+            band_callout(p, text)
+            layers.append((p, 0.4 if k == 0 else k * T / len(texts), (k + 1) * T / len(texts)))
         for k, w in enumerate(waits):
             p = work / f"{shot}-wait.png"
             tag(p, "Wait cut")
@@ -201,7 +272,7 @@ def main() -> None:
 
         # Captions: the script's cues for this shot, spread over the narration by text length.
         start = timing[shot]["start"]
-        cues = [c for c in srt if start - 0.01 <= c["start"] < timing[shot]["end"] - 0.01]
+        cues = [c for c in srt if c["text"] in narration[shot]]  # by text: a cue can start just inside the previous window
         total_chars = sum(len(c["text"]) for c in cues) or 1
         t = 0.0
         caps: list[tuple[Path, float, float]] = []
@@ -219,7 +290,7 @@ def main() -> None:
             for p, _, _ in layer_list:
                 cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{T:.3f}", "-i", str(p)]
             chain = (f"[0:v]setpts=PTS/{speed:.5f},tpad=stop_mode=clone:stop_duration={pad + 1:.3f},fps={FPS},"
-                     f"trim=duration={T:.3f},setpts=PTS-STARTPTS[b0]")
+                     f"trim=duration={T:.3f},setpts=PTS-STARTPTS,pad=1920:1080:0:0:black[b0]")
             for i, (_, a, b) in enumerate(layer_list, start=1):
                 chain += f";[b{i - 1}][{i}:v]overlay=0:0:enable='between(t,{a:.3f},{b:.3f})':eof_action=pass[b{i}]"
             cmd += ["-filter_complex", chain, "-map", f"[b{len(layer_list)}]", *ENC, "-t", f"{T:.3f}", str(dest)]

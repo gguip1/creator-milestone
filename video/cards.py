@@ -53,99 +53,113 @@ def chip(text: str, fnt, fg=(255, 255, 255), bg=(17, 24, 39, 215), pad=(18, 10))
     return img
 
 
-def static_overlay(path: Path, lower: str | None, extra_tags: list[str] | None = None) -> None:
-    """Full-frame overlay for a whole shot: sandbox label top right, optional tags top left."""
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    sb = chip("PayPal sandbox — no real money", font(24, True), bg=(146, 64, 14, 235))
-    img.alpha_composite(sb, (W - sb.width - 28, 24))
-    y = 24
-    for tag in extra_tags or []:
-        t = chip(tag, font(24, True), bg=(30, 64, 175, 235))
-        img.alpha_composite(t, (28, y))
-        y += t.height + 10
+AH, BAND = 930, 150  # app area and caption band; the app is never covered
+
+
+def _layer() -> Image.Image:
+    return Image.new("RGBA", (W, H), (0, 0, 0, 0))
+
+
+def band_static(path: Path, tags: list[str]) -> None:
+    """The one small sandbox badge in the band's right corner; optional small tags in its left corner."""
+    img = _layer()
+    y = AH + BAND - 44
+    sb = chip("PayPal sandbox, no real money", font(18, True), bg=(146, 64, 14, 255), pad=(14, 5))
+    img.alpha_composite(sb, (W - sb.width - 24, y))
+    x = 24
+    for t in tags:
+        c = chip(t, font(17, True), bg=(30, 64, 175, 255), pad=(12, 4))
+        img.alpha_composite(c, (x, y))
+        x += c.width + 8
     img.save(path)
 
 
-def lower_third(path: Path, text: str) -> None:
-    fnt = font(34, True)
-    c = chip(text, fnt, bg=(17, 24, 39, 225), pad=(26, 14))
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    img.alpha_composite(c, (60, H - 250 - c.height))
+def band_callout(path: Path, text: str) -> None:
+    """Short on-screen text, in the band under the app."""
+    img = _layer()
+    ImageDraw.Draw(img).text((W // 2, AH + BAND - 40), text, font=font(26, True), fill=(252, 211, 77), anchor="ma")
     img.save(path)
 
 
 def caption(path: Path, text: str) -> None:
     fnt = font(40, True)
     probe = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
-    lines = wrap(probe, text, fnt, W - 360)
-    lh = 52
-    box_w = max(int(probe.textlength(line, font=fnt)) for line in lines) + 56
-    box_h = lh * len(lines) + 28
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    lines = wrap(probe, text, fnt, 1480)
+    img = _layer()
     d = ImageDraw.Draw(img)
-    x0, y0 = (W - box_w) // 2, H - 60 - box_h
-    d.rounded_rectangle((x0, y0, x0 + box_w, y0 + box_h), radius=14, fill=(0, 0, 0, 205))
+    y0 = AH + 14 if len(lines) > 1 else AH + 30
     for i, line in enumerate(lines):
-        lw = d.textlength(line, font=fnt)
-        d.text(((W - lw) / 2, y0 + 14 + i * lh), line, font=fnt, fill=(255, 255, 255))
+        d.text((W // 2, y0 + i * 48), line, font=fnt, fill=(255, 255, 255), anchor="ma")
     img.save(path)
 
 
 def tag(path: Path, text: str) -> None:
-    """Small label near the top, used for 'Sped up 1.3x' and 'Wait cut'."""
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    c = chip(text, font(26, True), bg=(0, 0, 0, 215))
-    img.alpha_composite(c, (W - c.width - 28, 24 + 52 + 10))
+    """Short-lived small tag in the band, left of the sandbox badge (for 'Wait cut')."""
+    img = _layer()
+    c = chip(text, font(17, True), bg=(0, 0, 0, 255), pad=(12, 4))
+    img.alpha_composite(c, (W - 24 - 270 - c.width, AH + BAND - 44))
     img.save(path)
 
 
-def _canvas(bg=(15, 23, 42)) -> tuple[Image.Image, ImageDraw.ImageDraw]:
-    img = Image.new("RGB", (W, H), bg)
+def _canvas(bg=(15, 23, 42), h: int = 930) -> tuple[Image.Image, ImageDraw.ImageDraw]:
+    img = Image.new("RGB", (W, h), bg)
     return img, ImageDraw.Draw(img)
 
 
-def phone_background(path: Path) -> None:
-    img, d = _canvas((24, 28, 38))
-    d.text((W // 2, 40), "Client's phone (390 px wide, real page)", font=font(28, True), fill=(203, 213, 225), anchor="ma")
+def phone_background(path: Path, desktop_frame: Path | None, x: int = 1230, y: int = 76) -> None:
+    """Dimmed desktop view with a title above the phone slot. The phone itself is composited over it."""
+    if desktop_frame and desktop_frame.exists():
+        from PIL import ImageEnhance, ImageFilter
+        img = Image.open(desktop_frame).convert("RGB").resize((W, AH))
+        img = ImageEnhance.Brightness(img.filter(ImageFilter.GaussianBlur(2))).enhance(0.32)
+    else:
+        img = Image.new("RGB", (W, AH), (24, 28, 38))
+    d = ImageDraw.Draw(img)
+    cx = x + 195
+    title = "The client's phone"
+    f = font(32, True)
+    tw = d.textlength(title, font=f)
+    d.rounded_rectangle((cx - tw / 2 - 28, 14, cx + tw / 2 + 28, 66), radius=26, fill=(17, 24, 39))
+    d.text((cx, 22), title, font=f, fill=(255, 255, 255), anchor="ma")
+    d.rounded_rectangle((x - 5, y - 5, x + 395, y + 849), radius=14, outline=(148, 163, 184), width=4)
     img.save(path)
 
 
 def placeholder_card(path: Path, title: str, sub: str) -> None:
     img, d = _canvas((30, 41, 59))
-    d.rounded_rectangle((260, 300, W - 260, 780), radius=28, outline=(148, 163, 184), width=3)
-    d.text((W // 2, 470), title, font=font(64, True), fill=(255, 255, 255), anchor="ma")
-    d.text((W // 2, 590), sub, font=font(36), fill=(203, 213, 225), anchor="ma")
-    d.text((W // 2, 680), "Draft only. The final video shows the real PayPal sandbox page here.", font=font(28), fill=(148, 163, 184), anchor="ma")
+    d.rounded_rectangle((260, 220, W - 260, 700), radius=28, outline=(148, 163, 184), width=3)
+    d.text((W // 2, 390), title, font=font(64, True), fill=(255, 255, 255), anchor="ma")
+    d.text((W // 2, 510), sub, font=font(36), fill=(203, 213, 225), anchor="ma")
+    d.text((W // 2, 600), "Draft only. The final video shows the real PayPal sandbox page here.", font=font(28), fill=(148, 163, 184), anchor="ma")
     img.save(path)
 
 
 def s9_card(path: Path) -> None:
     img, d = _canvas()
-    d.text((W // 2, 70), "CreatorMilestone", font=font(66, True), fill=(255, 255, 255), anchor="ma")
+    d.text((W // 2, 40), "CreatorMilestone", font=font(66, True), fill=(255, 255, 255), anchor="ma")
     col_w = 700
     for i, (head, body, color) in enumerate([
         ("Real", "Gemini reading the chat.\nPayPal sandbox invoicing and payment.", (110, 231, 183)),
         ("Sandbox", "The money.\nThe buyer.", (252, 211, 77)),
     ]):
         x = 190 + i * (col_w + 150)
-        d.rounded_rectangle((x, 190, x + col_w, 430), radius=20, outline=color, width=3)
-        d.text((x + 36, 212), head, font=font(44, True), fill=color)
+        d.rounded_rectangle((x, 150, x + col_w, 380), radius=20, outline=color, width=3)
+        d.text((x + 36, 168), head, font=font(44, True), fill=color)
         for j, line in enumerate(body.split("\n")):
-            d.text((x + 36, 290 + j * 52), line, font=font(34), fill=(226, 232, 240))
+            d.text((x + 36, 240 + j * 52), line, font=font(34), fill=(226, 232, 240))
     fnt = font(36)
     probe = d
-    y = 500
+    y = 440
     for line in wrap(probe, PITCH, fnt, W - 360):
         d.text((W // 2, y), line, font=fnt, fill=(255, 255, 255), anchor="ma")
         y += 54
     d.text((W // 2, y + 36), f"Repository: {REPO_URL_PLACEHOLDER}", font=font(34, True), fill=(147, 197, 253), anchor="ma")
-    d.text((W // 2, H - 290), "Narration voice: AI-generated (Gemini TTS). Sample art: AI-generated.", font=font(30), fill=(203, 213, 225), anchor="ma")
-    d.text((W // 2, H - 240), "PayPal sandbox — no real money", font=font(26, True), fill=(252, 211, 77), anchor="ma")
+    d.text((W // 2, AH - 110), "Narration voice: AI-generated (Gemini TTS). Sample art: AI-generated.", font=font(30), fill=(203, 213, 225), anchor="ma")
     img.save(path)
 
 
 def end_card(path: Path) -> None:
-    img, d = _canvas()
+    img, d = _canvas(h=1080)
     d.text((W // 2, 360), "CreatorMilestone", font=font(110, True), fill=(255, 255, 255), anchor="ma")
     d.text((W // 2, 520), "Try it: " + DEMO_URL.removeprefix("https://"), font=font(48), fill=(147, 197, 253), anchor="ma")
     d.text((W // 2, 600), f"Code: {REPO_URL_PLACEHOLDER}", font=font(44), fill=(203, 213, 225), anchor="ma")

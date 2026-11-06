@@ -27,7 +27,8 @@ from playwright.sync_api import TimeoutError as PWTimeout
 
 from common import RAW, SANDBOX_HOST, ensure_dirs
 
-DESKTOP = {"width": 1920, "height": 1080}
+DESKTOP = {"width": 1920, "height": 930}  # the app area; the editor adds a 150 px caption band below
+ZOOM_JS = "(()=>{const s=document.createElement('style');s.textContent='body{zoom:1.25}';document.documentElement.appendChild(s)})()"
 PHONE = {"width": 390, "height": 844}
 WAIT = 90_000  # ms: explicit wait ceiling for AI and PayPal round trips
 LOCAL_HOSTS = {"127.0.0.1", "localhost"}
@@ -62,14 +63,15 @@ CURSOR_JS = """
 """
 
 SPOT_JS = """
-(el, on) => {
-  if (!on) { document.querySelectorAll('[data-spot]').forEach(e => { e.style.outline = ''; e.style.outlineOffset = ''; e.removeAttribute('data-spot'); }); return; }
+(el, mode) => {
+  if (mode === 'off') { document.querySelectorAll('[data-spot]').forEach(e => { e.style.outline = ''; e.style.outlineOffset = ''; e.removeAttribute('data-spot'); }); return null; }
   let n = el, limit = 6;
   const sec = el.closest('section, article') || document.body;
   const target = sec.getBoundingClientRect().width * 0.6;
   while (limit-- > 0 && n.parentElement && n.getBoundingClientRect().width < target && n.parentElement !== sec) n = n.parentElement;
-  n.setAttribute('data-spot', '1');
-  n.style.outline = '3px solid #ff9f1c'; n.style.outlineOffset = '4px';
+  if (mode === 'on') { n.setAttribute('data-spot', '1'); n.style.outline = '3px solid #ff9f1c'; n.style.outlineOffset = '4px'; }
+  const r = n.getBoundingClientRect();
+  return {x: r.x, y: r.y, w: r.width, h: r.height};
 }
 """
 
@@ -89,6 +91,7 @@ class Seg:
         self.cut_spans: list[list[float]] = []
         self.start_at = 0.0
         self.flags: dict = {}
+        self.focus_spans: list[list[float]] = []  # [t0, t1, x, y, w, h]: where the editor zooms in
         self.marks: list[tuple[str, float | None]] = [(shot, None)]  # (shot, start time) of each part
 
     def split(self, shot: str) -> None:
@@ -153,12 +156,20 @@ class Seg:
         loc.first.evaluate(f"el => el.scrollIntoView({{behavior: 'smooth', block: '{block}'}})")
         self.hold(0.8)
 
-    def spotlight(self, loc: Locator, seconds: float = 2.2) -> None:
+    def focus(self, loc: Locator, seconds: float = 2.2, outline: bool = False) -> None:
+        """Bring an element into view and hold on it; the editor zooms in on its box while it is narrated."""
         self.scroll_to(loc)
         self.point(loc, 0.7)
-        loc.first.evaluate(SPOT_JS, True)
+        box = loc.first.evaluate(SPOT_JS, "on" if outline else "measure")
+        t0 = self.now()
         self.hold(seconds)
-        loc.first.evaluate(SPOT_JS, False)
+        if box:
+            self.focus_spans.append([t0, self.now(), box["x"], box["y"], box["w"], box["h"]])
+        if outline:
+            loc.first.evaluate(SPOT_JS, "off")
+
+    def spotlight(self, loc: Locator, seconds: float = 2.2) -> None:
+        self.focus(loc, seconds, outline=True)
 
 
 class Recorder:
@@ -196,6 +207,8 @@ class Recorder:
             kw["storage_state"] = state
         ctx = self.browser.new_context(**kw)
         ctx.add_init_script(CURSOR_JS)
+        if kind != "phone":
+            ctx.add_init_script(ZOOM_JS)  # 125% so body text reads clearly at 1080p
         ctx.set_default_timeout(WAIT)
         return ctx
 
@@ -213,6 +226,7 @@ class Recorder:
             self.manifest.append({
                 "shot": name, "kind": seg.kind, "file": dest.name, "in": a, "out": b,
                 "idle": [sp for sp in seg.idle_spans if inside(sp)], "cut": [sp for sp in seg.cut_spans if inside(sp)],
+                "focus": [sp for sp in seg.focus_spans if inside(sp)],
                 **seg.flags, **(extra or {}),
             })
 
@@ -314,34 +328,39 @@ def preroll_revisions(rec: Recorder, pid: str) -> None:
             page.get_by_text(f"{n} of 2 used").first.wait_for(state="visible")
 
 
+def guard_check(rec: Recorder, pid: str) -> None:
+    """Scope Guard runs off camera, so S1 can open on the seller's change-order card."""
+    with rec.silent() as page:
+        page.goto(f"{rec.base}/projects/{pid}/messages/new")
+        page.get_by_role("button", name="Use example message").click()
+        page.get_by_role("button", name="Check against scope").click()
+        page.get_by_text("Change order total").first.wait_for(state="visible", timeout=WAIT)
+        page.get_by_text("Exceeds limit: 2/2 revisions used").first.wait_for(state="visible")
+        if page.get_by_text("Cached analysis").first.is_visible():
+            rec.run["cached_analysis"] = True
+            print("  note: Scope Guard used 'Cached analysis'." + (" RE-RECORD for the live take." if rec.live else " Expected on the fake runner."))
+
+
 def shot_s1(rec: Recorder, pid: str, href: str) -> None:
+    card_sel = "article[aria-label='Change order #1: bill two extras']"
     with rec.segment("S1") as s:
-        s.open(f"{rec.base}/projects/{pid}/messages/new", s.page.get_by_role("button", name="Use example message"))
-        s.click(s.page.get_by_role("button", name="Use example message"))
-        s.click(s.page.get_by_role("button", name="Check against scope"))
-        with s.idle():
-            s.page.get_by_text("Change order total").first.wait_for(state="visible", timeout=WAIT)
-        check_cached(s, rec)
-        s.page.get_by_text("Exceeds limit: 2/2 revisions used").first.wait_for(state="visible")
-        s.scroll_to(s.page.get_by_text("Scope Guard result"), "start")
-        s.hold(0.6)
-        s.spotlight(s.page.get_by_text("add a second outfit"), 1.5)
-        s.spotlight(s.page.get_by_text("Exceeds limit: 2/2 revisions used"), 1.7)
-        s.spotlight(s.page.get_by_text("I might use it on merch later"), 1.5)
-        s.spotlight(s.page.get_by_text("Change order total"), 1.4)
-    with rec.segment("S1") as s:
-        s.open(f"{rec.base}/projects/{pid}", s.page.locator("article[aria-label='Change order #1: bill two extras']"))
-        card = s.page.locator("article[aria-label='Change order #1: bill two extras']")
-        s.spotlight(card, 1.0)
+        s.open(f"{rec.base}/projects/{pid}", s.page.locator(card_sel))
+        card = s.page.locator(card_sel)
+        s.scroll_to(card, "start")
+        s.hold(1.5)
+        s.focus(card.get_by_text("add a second outfit"), 2.6, outline=True)
+        s.focus(card.get_by_text("Exceeds limit: 2/2 revisions used"), 2.8, outline=True)
+        s.focus(card.get_by_text("I might use it on merch later"), 2.6, outline=True)
+        s.focus(card.get_by_text("Change order total"), 2.2, outline=True)
         s.click(card.get_by_role("button", name="Approve"))
         card.first.wait_for(state="hidden")  # the proposal card leaves once the client is asked
-        s.hold(0.6)
+        s.hold(0.8)
     with rec.segment("S1", "phone", fresh=True, save=False) as p:
         p.open(rec.base + href, p.page.get_by_role("button", name="Approve change order"))
-        p.hold(1.0)
+        p.hold(2.0)
         p.click(p.page.get_by_role("button", name="Approve change order"))
         p.page.get_by_text("You approved change order #1").first.wait_for(state="visible")
-        p.hold(1.5)
+        p.hold(2.0)
 
 
 def shot_s5(rec: Recorder, pid: str) -> dict:
@@ -349,7 +368,7 @@ def shot_s5(rec: Recorder, pid: str) -> dict:
     with rec.segment("S5") as s:
         s.open(f"{rec.base}/projects/{pid}", s.page.locator("article[aria-label='Bill change order #1']"))
         bill = s.page.locator("article[aria-label='Bill change order #1']")
-        s.spotlight(bill, 3.0)  # recipient, two lines, $100.00 total
+        s.focus(bill, 3.5)  # recipient, two lines, $100.00 total
         s.click(bill.get_by_role("button", name="Approve"))
         send = s.page.locator("article[aria-label='Send this invoice?']")
         with s.idle():
@@ -432,7 +451,12 @@ def shots_s6_s7(rec: Recorder, link: str, number: str) -> None:
             die(f"the PayPal invoice page does not show {needle}; not the invoice from S5")
     seg.start_at = max(0.0, seg.now() - 0.3)
     page.mouse.move(seg.x, seg.y)
-    seg.hold(3.0)
+    seg.hold(1.5)
+    for needle in ("80.00", "20.00", "100.00"):  # zoom on the invoice lines and the total, as narrated
+        try:
+            seg.focus(page.get_by_text(needle).first, 2.4)
+        except Exception:  # noqa: BLE001 - zooming is cosmetic; the checks below are what matter
+            pass
     terms = re.search(r"terms and conditions", text, re.I) and re.search(r"scope v2|version 2|v2", text, re.I)
     rec.run["terms_visible_on_paypal_page"] = bool(terms)
     if not terms:
@@ -486,9 +510,10 @@ def shots_s6_s7(rec: Recorder, link: str, number: str) -> None:
     shutil.move(vpath, dest)
     cuts = seg.cut_spans
     rec.manifest.append({"shot": "S6", "kind": "desktop", "file": dest.name, "in": seg.start_at, "out": split_t,
-                         "idle": [], "cut": [], "app": False})
+                         "idle": [], "cut": [], "app": False,
+                         "focus": [f for f in seg.focus_spans if f[1] <= split_t + 0.01]})
     rec.manifest.append({"shot": "S7", "kind": "desktop", "file": dest.name, "in": split_t, "out": end_t,
-                         "idle": [], "cut": cuts, "app": False})
+                         "idle": [], "cut": cuts, "app": False, "focus": []})
 
 
 def placeholders(rec: Recorder, number: str) -> None:
@@ -537,6 +562,7 @@ def main() -> None:
             print("S2 landing"); pid = shot_s2(rec)
             print("S3/S4 intake, both accept"); href = shot_s3_s4(rec, pid)
             print("setup: revisions used up (not recorded)"); preroll_revisions(rec, pid)
+            print("setup: Scope Guard check (not recorded)"); guard_check(rec, pid)
             print("S1 change order"); shot_s1(rec, pid, href)
             print("S5 invoice created and sent"); info = shot_s5(rec, pid)
             rec.run.update(invoice_number=info["invoice_number"], project_id=pid)
