@@ -6,8 +6,10 @@ Tagline (one sentence): When a client asks for one more change, CreatorMilestone
 
 Links to enter on Devpost:
 - Hosted demo: https://creator-milestone.onrender.com
-- Code: the public repository URL (owner fills in)
-- Video: the public YouTube URL (owner fills in)
+- Code: https://github.com/gguip1/creator-milestone
+- Video: https://youtu.be/5Slk0f7NvUg
+
+Elevator pitch (200 characters max): Catches "just one more change" against the scope both sides agreed to, prices the extras, and turns them into PayPal invoices.
 
 ---
 

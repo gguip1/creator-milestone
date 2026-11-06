@@ -6,6 +6,8 @@ It is a back office for independent artists who take commissions from clients ab
 
 **Live demo (PayPal sandbox only, no real money): <https://creator-milestone.onrender.com>**
 
+**Demo video (2:42):** <https://youtu.be/5Slk0f7NvUg>
+
 Built for the PayPal AI Hackathon 2026. The AI interprets the request, rules propose the invoice, the seller approves, and the backend calls PayPal Invoicing v2. The model cannot execute PayPal writes, and every charge is computed by code.
 
 > The demo runs on a free host that sleeps when idle. The first load can take about a minute; the page shows a "waking up" notice and retries by itself.
