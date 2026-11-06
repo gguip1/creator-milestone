@@ -151,7 +151,7 @@ class Seg:
     def scroll_to(self, loc: Locator, block: str = "center") -> None:
         loc.first.wait_for(state="visible", timeout=WAIT)
         loc.first.evaluate(f"el => el.scrollIntoView({{behavior: 'smooth', block: '{block}'}})")
-        self.hold(1.1)
+        self.hold(0.8)
 
     def spotlight(self, loc: Locator, seconds: float = 2.2) -> None:
         self.scroll_to(loc)
@@ -324,24 +324,24 @@ def shot_s1(rec: Recorder, pid: str, href: str) -> None:
         check_cached(s, rec)
         s.page.get_by_text("Exceeds limit: 2/2 revisions used").first.wait_for(state="visible")
         s.scroll_to(s.page.get_by_text("Scope Guard result"), "start")
-        s.hold(1.2)
-        s.spotlight(s.page.get_by_text("add a second outfit"), 2.4)
-        s.spotlight(s.page.get_by_text("Exceeds limit: 2/2 revisions used"), 2.6)
-        s.spotlight(s.page.get_by_text("I might use it on merch later"), 2.4)
-        s.spotlight(s.page.get_by_text("Change order total"), 2.0)
+        s.hold(0.6)
+        s.spotlight(s.page.get_by_text("add a second outfit"), 1.5)
+        s.spotlight(s.page.get_by_text("Exceeds limit: 2/2 revisions used"), 1.7)
+        s.spotlight(s.page.get_by_text("I might use it on merch later"), 1.5)
+        s.spotlight(s.page.get_by_text("Change order total"), 1.4)
     with rec.segment("S1") as s:
         s.open(f"{rec.base}/projects/{pid}", s.page.locator("article[aria-label='Change order #1: bill two extras']"))
         card = s.page.locator("article[aria-label='Change order #1: bill two extras']")
-        s.spotlight(card, 1.6)
+        s.spotlight(card, 1.0)
         s.click(card.get_by_role("button", name="Approve"))
         card.first.wait_for(state="hidden")  # the proposal card leaves once the client is asked
-        s.hold(1.2)
+        s.hold(0.6)
     with rec.segment("S1", "phone", fresh=True, save=False) as p:
         p.open(rec.base + href, p.page.get_by_role("button", name="Approve change order"))
-        p.hold(1.5)
+        p.hold(1.0)
         p.click(p.page.get_by_role("button", name="Approve change order"))
         p.page.get_by_text("You approved change order #1").first.wait_for(state="visible")
-        p.hold(2.0)
+        p.hold(1.5)
 
 
 def shot_s5(rec: Recorder, pid: str) -> dict:

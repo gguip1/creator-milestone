@@ -122,12 +122,12 @@ def placeholder_card(path: Path, title: str, sub: str) -> None:
 def s9_card(path: Path) -> None:
     img, d = _canvas()
     d.text((W // 2, 70), "CreatorMilestone", font=font(66, True), fill=(255, 255, 255), anchor="ma")
-    col_w = 760
+    col_w = 700
     for i, (head, body, color) in enumerate([
         ("Real", "Gemini reading the chat.\nPayPal sandbox invoicing and payment.", (110, 231, 183)),
         ("Sandbox", "The money.\nThe buyer.", (252, 211, 77)),
     ]):
-        x = 200 + i * (col_w + 200)
+        x = 190 + i * (col_w + 150)
         d.rounded_rectangle((x, 190, x + col_w, 430), radius=20, outline=color, width=3)
         d.text((x + 36, 212), head, font=font(44, True), fill=color)
         for j, line in enumerate(body.split("\n")):
@@ -139,8 +139,8 @@ def s9_card(path: Path) -> None:
         d.text((W // 2, y), line, font=fnt, fill=(255, 255, 255), anchor="ma")
         y += 54
     d.text((W // 2, y + 36), f"Repository: {REPO_URL_PLACEHOLDER}", font=font(34, True), fill=(147, 197, 253), anchor="ma")
-    d.text((W // 2, H - 120), "Narration voice: AI-generated (Gemini TTS). Sample art: AI-generated.", font=font(30), fill=(203, 213, 225), anchor="ma")
-    d.text((W // 2, H - 70), "PayPal sandbox — no real money", font=font(26, True), fill=(252, 211, 77), anchor="ma")
+    d.text((W // 2, H - 290), "Narration voice: AI-generated (Gemini TTS). Sample art: AI-generated.", font=font(30), fill=(203, 213, 225), anchor="ma")
+    d.text((W // 2, H - 240), "PayPal sandbox — no real money", font=font(26, True), fill=(252, 211, 77), anchor="ma")
     img.save(path)
 
 
