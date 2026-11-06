@@ -45,21 +45,22 @@ Narration for each shot starts at the shot's start time. The rest of each window
 ### S3 · 0:28-0:48 · LIVE · How the agreement was formed: intake
 
 - **Route:** `/projects/:id/intake`
-- **Actions:** Click Paste example, then Analyze (cut the wait, mark the cut). Hover the Revisions field showing Needs confirmation and its quote "Maybe two rounds of revisions?". Point at usage rights and client email marked Unknown. Scroll to the reply draft with its Korean translation.
+- **Actions:** Click Use example message, then Analyze (cut the wait, mark the cut). Hover the Revisions field showing Needs confirmation and its highlighted quote "two rounds of revisions" (the app marks it as a guess, not an agreement). Point at usage rights and client email marked Unknown. Scroll to the reply draft with its Korean translation.
 - **On-screen text:** "Needs confirmation" and "Unknown" callouts on those fields.
 - **Narration:** Jiwoo pastes the client's chat. The AI lists each term with the exact words behind it. Revisions are flagged, because the client only said maybe. Usage rights and email are unknown. It drafts a reply with a Korean translation.
 
 ### S4 · 0:48-1:01 · LIVE · Both sides accept
 
 - **Route:** `/projects/:id/intake`, then `/c/:token` at 390 px.
-- **Actions:** Fill the missing fields, accept as seller. Switch to the client page at phone width and accept. Show both acceptances ticked.
+- **Actions:** Click Go to the scope form and plan, click Fill example values, then click Accept scope v1 and share with client. Click Open the client page, switch to the client page at phone width and accept. Show both acceptances ticked.
 - **On-screen text:** "Seller accepts" then "Client accepts: scope v1".
 - **Narration:** She fills the gaps and accepts. The client accepts on their phone. Now both sides share the same terms.
+- **Before S5 (off camera or sped up, no shortcut):** back on the project screen, click **Log a revision** twice. The agreed scope starts at 0 of 2 used; the follow-up only prices the extra revision once 2 of 2 are used, so skipping this changes the $100 result. Then click **Guard the scope** in the step bar (it is available with the deposit unpaid) to open the new-message screen.
 
 ### S5 · 1:01-1:24 · LIVE · Change-order invoice created and sent
 
 - **Route:** `/projects/:id`
-- **Actions:** Back on the project screen, after both change-order approvals shown in S1 (scope now version 2). Show the Bill card for the change order: recipient, two lines, $100.00 total. Click Approve, show the draft created. Click Approve on the send card, show the Sent state and invoice number. Do not touch the deposit card.
+- **Actions:** Back on the project screen, after both change-order approvals shown in S1 (scope now version 2). Show the Bill card for the change order: recipient, two lines, $100.00 total. Click Approve, show the draft created. Click Send invoice on the send card, show the Sent state and invoice number. Do not touch the deposit card.
 - **On-screen text:** "Scope v2" and "Rules compute the amount. Jiwoo approves."
 - **Narration:** Back to the change order. Both approved, so the agreement became version two. Rules, not the AI, build the invoice from her rate card, one line per extra. Jiwoo approves, and the backend creates it in PayPal. A second approval sends it.
 
@@ -80,7 +81,7 @@ Narration for each shot starts at the shot's start time. The rest of each window
 ### S8 · 1:58-2:12 · LIVE · App reads PAID back
 
 - **Route:** `/projects/:id`
-- **Actions:** Return to the app. Use the refresh control on the invoice. Show Paid via PayPal on the change order, and the activity row Status read from PayPal with the same invoice number. Show the final timeline.
+- **Actions:** Return to the app. Click Check PayPal now. Show Paid via PayPal on the change order, and the activity row Status read from PayPal with the same invoice number. Show the final timeline.
 - **On-screen text:** "Paid via PayPal. Read back from PayPal."
 - **Narration:** Back in the app, PayPal reports the invoice paid. Only then does the app settle the change order. The status is read from PayPal.
 
@@ -102,8 +103,8 @@ Narration for each shot starts at the shot's start time. The rest of each window
 ## Recording order and rules
 
 1. **Record chronologically in one take**, then assemble in the editor: S1 is built from footage recorded during S5's lead-in (the change-order card, Jiwoo's approval, the client's approval), placed first. S2 to S4 follow, then the rest of S5 to S8 as recorded. Mark every cut and any speed-up (for example a "2x" tag over waiting).
-2. **No shortcut.** Do not use **Jump to: deposit paid** anywhere in the video. The only payment shown is the change-order invoice created in this take, paid by the sandbox buyer, and read back. Leave the deposit unbilled in the take. Scope Guard needs only an agreed scope.
-3. **Verify during the dry run** (not yet confirmed in the test log): the buyer-facing page of the two-line change-order invoice has not been separately inspected for the note and terms. If the note and terms are not visible there, cut the last sentence of S6 and its caption, and drop "with the agreed terms" from any copy that describes this invoice.
+2. **No shortcut.** Do not use **Jump to: deposit paid** or **Jump to: sketch shared** anywhere in the video; log the two revisions by hand. The only payment shown is the change-order invoice created in this take, paid by the sandbox buyer, and read back. Leave the deposit unbilled in the take. Scope Guard needs only an agreed scope.
+3. **Verify during the dry run:** the test log records that the two-line change-order invoice's buyer-facing page showed the note, both lines and the terms on 2026-11-06 (`docs/paypal-test-log.md`). Check it again on the actual recording take. If the note and terms are not visible there, cut the last sentence of S6 and its caption, and drop "with the agreed terms" from any copy that describes this invoice.
 4. **Cached analysis.** If the "Cached analysis" label appears during the take, re-record, or say on screen that it is a recorded result.
 5. **Narration.** Generate it from [`narration.txt`](narration.txt) with Gemini TTS, one line per shot, and place each line at its shot's start time. If the TTS reads a line faster or slower than 145 words per minute, adjust the silent action time, not the words. Numbers are written the way they should be spoken; the text has no symbols to read aloud.
 6. **Disclose the AI voice** in the S9 card and in the Devpost text.

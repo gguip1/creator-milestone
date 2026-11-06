@@ -106,5 +106,5 @@ From [paypal-test-log.md](paypal-test-log.md), real calls to `https://api-m.sand
 ### Not verified
 
 - Whether a reminder reaches the buyer's sandbox notifications (PayPal accepted the call).
-- The buyer-facing page of the two-line change-order invoice was not separately inspected for note and terms.
+- The buyer-facing page of the two-line change-order invoice was inspected on 2026-11-06 (note, both lines, terms; see `paypal-test-log.md`); re-check on each new recording take.
 - Webhooks and any live (non-sandbox) PayPal behavior.
