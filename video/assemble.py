@@ -21,7 +21,7 @@ from cards import (band_callout, band_static, caption, end_card, phone_backgroun
                    s9_card, tag)
 from PIL import Image
 
-from common import (FPS, H, W, OUT, RAW, SHOT_TEXT, duration, ensure_dirs, frame_ceil, need, parse_narration,
+from common import (FPS, H, W, probe, OUT, RAW, SHOT_TEXT, duration, ensure_dirs, frame_ceil, need, parse_narration,
                     parse_srt, parse_timing, run)
 
 SHOTS = [f"S{i}" for i in range(1, 10)]
@@ -121,15 +121,25 @@ def prepare_footage(seg: dict, dest: Path, work: Path, prev_clip: Path | None) -
     trim = f"trim=start={a:.3f}" + (f":end={b:.3f}" if b is not None else "") + ",setpts=PTS-STARTPTS"
     chain = f"{trim},fps={FPS},select='{expr}',setpts=N/({FPS}*TB)"
     cmd = [ff, "-y", "-i", str(src)]
-    if seg["kind"] == "phone":
-        # Real 390 px recording over a dimmed freeze of the seller's screen, with a title above it.
+    if seg["kind"] in ("phone", "popup"):
+        # A real recording over a dimmed freeze of the previous screen, with a title above it.
+        if seg["kind"] == "phone":
+            x, y, w, h, title = 1230, 76, 390, 844, "The client's phone"
+        else:
+            vs = next(st for st in probe(src)["streams"] if st["codec_type"] == "video")
+            cw, ch = seg.get("crop") or [vs["width"], vs["height"]]  # the popup viewport, top left of the video
+            k = min(1500 / cw, 830 / ch, 1.6)
+            w, h = int(cw * k) // 2 * 2, int(ch * k) // 2 * 2
+            chain += f",crop={cw}:{ch}:0:0"
+            x, y, title = (W - w) // 2, 76 + (844 - h) // 2, "Checkout opens in a PayPal sandbox popup"
         frame = work / f"{dest.stem}-prev.png"
         if prev_clip:
             run([ff, "-y", "-sseof", "-0.2", "-i", str(prev_clip), "-frames:v", "1", str(frame)])
         bg = work / f"{dest.stem}-bg.png"
-        phone_background(bg, frame if prev_clip else None)
+        phone_background(bg, frame if prev_clip else None, x, y, w, h, title)
+        scale = f",scale={w}:{h}:flags=lanczos" if seg["kind"] == "popup" else ""
         cmd += ["-loop", "1", "-i", str(bg), "-filter_complex",
-                f"[0:v]{chain}[ph];[1:v][ph]overlay=1230:76:shortest=1,format=yuv420p[v]"]
+                f"[0:v]{chain}{scale}[ph];[1:v][ph]overlay={x}:{y}:shortest=1,format=yuv420p[v]"]
     else:
         cmd += ["-filter_complex", f"[0:v]{chain},scale=1920:{AH}:flags=lanczos,format=yuv420p[v]"]
     out = dest if not (seg.get("focus") and seg["kind"] != "phone") else dest.with_name(dest.stem + "-pre.mp4")
@@ -216,7 +226,7 @@ def main() -> None:
                 dur, lab, raw = length, [], length
             else:
                 dur, lab, raw = prepare_footage(seg, dest, work, prev_desktop)
-                if seg["kind"] != "phone":
+                if seg["kind"] == "desktop":
                     prev_desktop = dest
             waits += [L + x for x in lab]
             L += dur

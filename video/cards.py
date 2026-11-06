@@ -106,8 +106,9 @@ def _canvas(bg=(15, 23, 42), h: int = 930) -> tuple[Image.Image, ImageDraw.Image
     return img, ImageDraw.Draw(img)
 
 
-def phone_background(path: Path, desktop_frame: Path | None, x: int = 1230, y: int = 76) -> None:
-    """Dimmed desktop view with a title above the phone slot. The phone itself is composited over it."""
+def phone_background(path: Path, desktop_frame: Path | None, x: int = 1230, y: int = 76, w: int = 390, h: int = 844,
+                     title: str = "The client's phone") -> None:
+    """Dimmed desktop view with a title above the slot (x, y, w, h). The recording is composited over it."""
     if desktop_frame and desktop_frame.exists():
         from PIL import ImageEnhance, ImageFilter
         img = Image.open(desktop_frame).convert("RGB").resize((W, AH))
@@ -115,13 +116,12 @@ def phone_background(path: Path, desktop_frame: Path | None, x: int = 1230, y: i
     else:
         img = Image.new("RGB", (W, AH), (24, 28, 38))
     d = ImageDraw.Draw(img)
-    cx = x + 195
-    title = "The client's phone"
+    cx = x + w // 2
     f = font(32, True)
     tw = d.textlength(title, font=f)
     d.rounded_rectangle((cx - tw / 2 - 28, 14, cx + tw / 2 + 28, 66), radius=26, fill=(17, 24, 39))
     d.text((cx, 22), title, font=f, fill=(255, 255, 255), anchor="ma")
-    d.rounded_rectangle((x - 5, y - 5, x + 395, y + 849), radius=14, outline=(148, 163, 184), width=4)
+    d.rounded_rectangle((x - 5, y - 5, x + w + 5, y + h + 5), radius=14, outline=(148, 163, 184), width=4)
     img.save(path)
 
 
