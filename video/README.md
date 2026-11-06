@@ -77,25 +77,37 @@ uv run python check.py
 ```
 
 What `--live` does beyond the dry run: it creates a new change-order invoice (S5), opens that
-invoice's payer link in a clean private window, pays it as the sandbox buyer (S6, S7), then reads
+invoice's payer link in a clean private window (S6), pays it as the sandbox buyer (S7), then reads
 PAID back in the app (S8). It never uses **Jump to: deposit paid**, never touches the deposit
 card, and costs two AI analyses plus one invoice.
 
+How S7 works (structure verified from earlier successful sandbox payments): the invoice page has a cookie
+banner (closed first) and a PayPal Buttons iframe titled `PayPal-paypal`. A real mouse click at the iframe's
+centre (a DOM click does not work) opens checkout in a **popup**. The popup goes to `/checkoutnow` (login,
+only if the pre-login did not carry over) and then `/webapps/hermes` ("Complete Purchase"). The recorder then
+clicks Complete Purchase, waits for the popup to close, and waits for the invoice page to say paid. S7 is
+composed from three clips: the invoice page up to the click, the popup (its own recording, cropped to the
+popup's viewport and shown over a dimmed freeze of the invoice page), and the invoice page afterwards.
+
 Safeguards in the recorder:
-- Before typing anything on PayPal it checks the host is exactly `www.sandbox.paypal.com`, and it
-  refuses a payer link on any other host.
+- Before typing anything on PayPal it checks the host is exactly `www.sandbox.paypal.com`, on the invoice page
+  and on every pass over the popup, and it refuses a payer link on any other host.
 - The buyer login happens first in an unrecorded, in-memory browser context, so the email and
-  password are never on camera. If the recorded page still shows a login form, it logs in there and
-  the editor removes that span. Nothing is written to disk.
-- It aborts if the PayPal page does not show $100.00, $80.00 and $20.00 and the invoice number from S5.
+  password are never on camera. If the popup still shows a login form it logs in there; the popup clip then
+  starts 0.8 s after Complete Purchase appears, and the login span is also in the manifest as a cut. Nothing is written to disk.
+- It aborts if the invoice page lacks $100.00, $80.00, $20.00 and the invoice number from S5, and if the checkout
+  popup does not show 100.00 before Complete Purchase.
 - It aborts if the buyer password text appears on any app page.
+
+Rehearse the whole PayPal path with no network and no PayPal: `record.py --stub-paypal prelogin|popup-login`
+(fake runner only) routes `www.sandbox.paypal.com` to local stub pages (`paypal_stub.py`, marked "LOCAL STUB, NOT
+PAYPAL") with the same structure. `uv run pytest` runs the composition and host-check tests.
 
 ## What the coordinator must watch for
 
-1. **PayPal selectors are untested.** The PayPal steps (Pay button, login ids `#email`, `#password`,
-   `#btnNext`, `#btnLogin`, confirmation wording) were written from PayPal's usual page structure and
-   could not be run without real PayPal calls. Rehearse S6/S7 once and read the recorder's output. On
-   failure it saves `raw/debug-paypal.png`; pay by hand and re-record S8 only if needed.
+1. **PayPal selectors**: the iframe title, popup flow and button names come from your verified Nov 5 payments and
+   run correctly against the stub, but the real pages can differ in detail (popup size, wording). On
+   failure the recorder saves `raw/debug-paypal.png`; pay by hand and re-record S8 only if needed.
 2. **A verification prompt** at buyer login (captcha, OTP) stops the recorder with a clear message.
 3. **"Cached analysis"**: the recorder prints a warning if the label shows in a live take. Re-record.
 4. **Note and terms on the PayPal page**: if the recorder prints that they are not found, cut the

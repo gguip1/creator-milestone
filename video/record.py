@@ -28,7 +28,7 @@ from playwright.sync_api import TimeoutError as PWTimeout
 from common import RAW, SANDBOX_HOST, ensure_dirs
 
 DESKTOP = {"width": 1920, "height": 930}  # the app area; the editor adds a 150 px caption band below
-ZOOM_JS = "(()=>{const s=document.createElement('style');s.textContent='body{zoom:1.25}';document.documentElement.appendChild(s)})()"
+ZOOM_JS = "(()=>{if(innerWidth<1000)return;const s=document.createElement('style');s.textContent='body{zoom:1.25}';document.documentElement.appendChild(s)})()"
 PHONE = {"width": 390, "height": 844}
 WAIT = 90_000  # ms: explicit wait ceiling for AI and PayPal round trips
 LOCAL_HOSTS = {"127.0.0.1", "localhost"}
@@ -53,6 +53,8 @@ CURSOR_JS = """
       c.style.transform = `translate(${e.clientX}px,${e.clientY}px)`;
       try { sessionStorage.setItem('__cur', JSON.stringify({x: e.clientX, y: e.clientY})); } catch (x) {}
     }, true);
+    addEventListener('mouseout', e => { if (!e.relatedTarget) c.style.opacity = 0; }, true);
+    addEventListener('mouseover', () => { c.style.opacity = 1; }, true);
     addEventListener('mousedown', e => {
       ring.style.left = e.clientX + 'px'; ring.style.top = e.clientY + 'px';
       ring.animate([{opacity: 1, transform: 'scale(.4)'}, {opacity: 0, transform: 'scale(1.5)'}], {duration: 450});
@@ -65,6 +67,7 @@ CURSOR_JS = """
 SPOT_JS = """
 (el, mode) => {
   if (mode === 'off') { document.querySelectorAll('[data-spot]').forEach(e => { e.style.outline = ''; e.style.outlineOffset = ''; e.removeAttribute('data-spot'); }); return null; }
+  if (mode === 'row') { const t = el.closest('tr, li, [role=row]') || el; const q = t.getBoundingClientRect(); return {x: q.x, y: q.y, w: q.width, h: q.height}; }
   let n = el, limit = 6;
   const sec = el.closest('section, article') || document.body;
   const target = sec.getBoundingClientRect().width * 0.6;
@@ -156,11 +159,11 @@ class Seg:
         loc.first.evaluate(f"el => el.scrollIntoView({{behavior: 'smooth', block: '{block}'}})")
         self.hold(0.8)
 
-    def focus(self, loc: Locator, seconds: float = 2.2, outline: bool = False) -> None:
+    def focus(self, loc: Locator, seconds: float = 2.2, outline: bool = False, row: bool = False) -> None:
         """Bring an element into view and hold on it; the editor zooms in on its box while it is narrated."""
         self.scroll_to(loc)
         self.point(loc, 0.7)
-        box = loc.first.evaluate(SPOT_JS, "on" if outline else "measure")
+        box = loc.first.evaluate(SPOT_JS, "row" if row else ("on" if outline else "measure"))
         t0 = self.now()
         self.hold(seconds)
         if box:
@@ -173,11 +176,13 @@ class Seg:
 
 
 class Recorder:
-    def __init__(self, pw, base_url: str, live: bool, headed: bool) -> None:
+    def __init__(self, pw, base_url: str, live: bool, headed: bool, hook=None) -> None:
         self.base = base_url.rstrip("/")
         self.live = live
+        self.hook = hook  # rehearsal only: routes the PayPal sandbox host to a local stub
         host = urlparse(self.base).hostname
-        if not live and host not in LOCAL_HOSTS:
+        self.local = host in LOCAL_HOSTS
+        if not live and not self.local:
             die("a dry run only targets the local fake runner; pass --live for a hosted take")
         self.browser = pw.chromium.launch(headless=not headed, args=["--force-device-scale-factor=1"])
         self.state: dict | None = None
@@ -210,6 +215,8 @@ class Recorder:
         if kind != "phone":
             ctx.add_init_script(ZOOM_JS)  # 125% so body text reads clearly at 1080p
         ctx.set_default_timeout(WAIT)
+        if self.hook:
+            self.hook(ctx)
         return ctx
 
     def _save(self, seg: Seg, ctx, shot: str, extra: dict | None = None) -> None:
@@ -433,6 +440,106 @@ def buyer_state(rec: Recorder, email: str, password: str) -> dict:
     return state
 
 
+BUTTON_FRAME = "iframe[title='PayPal-paypal'], iframe[title^='PayPal-paypal']"  # zoid PayPal Buttons frame
+PAID_TEXT = re.compile(r"\bpaid\b", re.I)
+
+
+def wait_sandbox(page: Page) -> None:
+    """Wait until the page has left about:blank, then require the sandbox host."""
+    page.wait_for_url(lambda u: u not in ("", "about:blank"), timeout=WAIT)
+    assert_sandbox(page)
+
+
+def close_cookie_banner(page: Page) -> None:
+    btn = page.get_by_role("button", name=re.compile(r"^(close|accept( all)?|got it)$", re.I)).first
+    try:
+        btn.wait_for(state="visible", timeout=4000)
+        btn.click()
+    except PWTimeout:
+        pass
+
+
+def popup_login(page: Page, email: str, password: str) -> None:
+    """Sign in inside the checkout popup. The host is checked first; values are never printed."""
+    assert_sandbox(page)
+    em = page.locator("#email, input[name=login_email]").or_(
+        page.get_by_role("textbox", name=re.compile(r"email or mobile", re.I))).first
+    if em.is_visible():
+        if em.input_value() != email:  # it may be prefilled
+            em.fill(email)
+        nxt = page.locator("#btnNext")
+        if nxt.is_visible():
+            nxt.click()
+    pw = page.locator("#password, input[type=password]").first
+    pw.wait_for(state="visible", timeout=WAIT)
+    assert_sandbox(page)
+    pw.fill(password)
+    page.locator("#btnLogin").or_(page.get_by_role("button", name=re.compile(r"^log ?in$", re.I))).first.click()
+
+
+def login_form_visible(page: Page) -> bool:
+    return (page.locator("#password, input[type=password]").first.is_visible()
+            or page.locator("#email, input[name=login_email]").first.is_visible())
+
+
+def pay_in_popup(rec: Recorder, popup: Page, email: str, password: str) -> dict:
+    """Drive the checkout popup: log in only if it asks, check the amount, Complete Purchase, wait for close.
+
+    Times are in the popup's own video clock (its recording starts when the popup opens). Anything up to
+    and including the login is cut: the clip starts well after the 'Complete Purchase' page appears.
+    """
+    pseg = Seg(rec, "S7", "desktop", popup, app=False)
+    popup.set_default_timeout(WAIT)
+    login_started: float | None = None
+    login_sent_at: float | None = None
+    ready_at: float | None = None
+    deadline = time.monotonic() + 150
+    while time.monotonic() < deadline and not popup.is_closed():
+        try:
+            wait_sandbox(popup)  # every pass: the popup must stay on www.sandbox.paypal.com
+            if login_form_visible(popup):
+                if login_sent_at is None:
+                    login_started = pseg.now()
+                    popup_login(popup, email, password)
+                    login_sent_at = time.monotonic()
+                elif time.monotonic() - login_sent_at > 30:
+                    die("the checkout popup is still asking for a login 30 s after sending it; "
+                        "look for a verification prompt and pay by hand")
+                popup.wait_for_timeout(400)
+                continue
+            btn = popup.get_by_role("button", name=re.compile(r"^complete purchase$", re.I)).first
+            if btn.is_visible():
+                if "100.00" not in popup.inner_text("body"):
+                    die("the checkout page does not show 100.00; not paying")
+                ready_at = pseg.now()
+                size = popup.evaluate("[innerWidth, innerHeight]")  # the video is the popup viewport in a gray frame
+                pseg.start_at = ready_at + 0.8  # clear of the login and of the clock offset
+                if login_started is not None:
+                    pseg.cut_spans.append([max(0.0, login_started - 0.5), ready_at + 0.8])
+                pseg.hold(3.0)
+                pseg.click(btn)
+                try:
+                    popup.wait_for_event("close", timeout=60_000)
+                except PWTimeout:
+                    die("the checkout popup did not close after Complete Purchase")
+                break
+            popup.wait_for_timeout(400)
+        except SystemExit:
+            raise
+        except Exception as exc:  # noqa: BLE001 - a closing popup raises; anything else is reported
+            if popup.is_closed():
+                break
+            die(f"checkout popup step failed ({type(exc).__name__})")
+    if ready_at is None:
+        shot = RAW / "debug-paypal.png"
+        try:
+            popup.screenshot(path=str(shot))
+        except Exception:  # noqa: BLE001
+            pass
+        die(f"the checkout popup never reached Complete Purchase; screenshot (if any) at {shot}")
+    return {"seg": pseg, "end": pseg.now(), "size": [int(size[0]) // 2 * 2, int(size[1]) // 2 * 2]}
+
+
 def shots_s6_s7(rec: Recorder, link: str, number: str) -> None:
     email, password = os.environ.get("DEMO_BUYER_EMAIL"), os.environ.get("DEMO_BUYER_PASSWORD")
     if not email or not password:
@@ -445,6 +552,7 @@ def shots_s6_s7(rec: Recorder, link: str, number: str) -> None:
     page.goto(link, wait_until="domcontentloaded")
     assert_sandbox(page)
     page.get_by_text(number).first.wait_for(state="visible", timeout=WAIT)
+    close_cookie_banner(page)
     text = page.inner_text("body")
     for needle in ("100.00", "80.00", "20.00"):
         if needle not in text:
@@ -454,8 +562,8 @@ def shots_s6_s7(rec: Recorder, link: str, number: str) -> None:
     seg.hold(1.5)
     for needle in ("80.00", "20.00", "100.00"):  # zoom on the invoice lines and the total, as narrated
         try:
-            seg.focus(page.get_by_text(needle).first, 2.4)
-        except Exception:  # noqa: BLE001 - zooming is cosmetic; the checks below are what matter
+            seg.focus(page.get_by_text(needle).first, 2.4, row=True)
+        except Exception:  # noqa: BLE001 - zooming is cosmetic; the checks above are what matter
             pass
     terms = re.search(r"terms and conditions", text, re.I) and re.search(r"scope v2|version 2|v2", text, re.I)
     rec.run["terms_visible_on_paypal_page"] = bool(terms)
@@ -467,53 +575,62 @@ def shots_s6_s7(rec: Recorder, link: str, number: str) -> None:
             seg.scroll_to(loc, "center")
             seg.hold(2.2)
     seg.scroll_to(page.get_by_text(number).first, "center")
-    seg.hold(2.5)
+    seg.hold(2.0)
     split_t = seg.now()
-    seg.start_s7 = split_t
-    # S7: pay the same invoice.
-    pay = page.get_by_role("button", name=re.compile(r"^pay( now)?$", re.I)).or_(
-        page.get_by_role("link", name=re.compile(r"^pay( now)?$", re.I)))
-    seg.click(pay)
-    cut_from: float | None = None
-    deadline = time.monotonic() + 120
-    done = re.compile(r"(you('ve| have)? paid|payment (was )?(sent|successful|complete)|thank you|payment receipt)", re.I)
-    step = re.compile(r"^(pay now|complete purchase|continue|pay)$", re.I)
-    while time.monotonic() < deadline:
-        assert_sandbox(page)
-        if page.locator("#password").is_visible() or page.locator("#email").is_visible():
-            # The pre-login did not carry over. Log in here, off camera in the edit.
-            cut_from = seg.now()
-            paypal_login(page, email, password)
-            page.locator("#password").wait_for(state="hidden", timeout=WAIT)
-            seg.cut_spans.append([cut_from, seg.now() + 0.4])
+
+    # S7: a real mouse click on the PayPal Buttons iframe opens the checkout in a popup (its own recording).
+    frame = page.locator(BUTTON_FRAME).first
+    popup = None
+    for _attempt in (1, 2):
+        frame.wait_for(state="visible", timeout=WAIT)
+        frame.scroll_into_view_if_needed()
+        seg.hold(0.8)
+        box = frame.bounding_box()
+        if not box or box["height"] < 10:
             continue
-        if done.search(page.inner_text("body")):
-            break
-        btn = page.get_by_role("button", name=step).first
+        cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        seg.glide(cx, cy, 1.0)
+        seg.hold(0.4)
         try:
-            btn.wait_for(state="visible", timeout=6000)
-            seg.click(btn)
+            with ctx.expect_page(timeout=15_000) as opened:
+                page.mouse.click(cx, cy)
+            popup = opened.value
+            break
         except PWTimeout:
-            page.wait_for_timeout(1000)
-    else:
+            continue
+    if popup is None:
         shot = RAW / "debug-paypal.png"
         page.screenshot(path=str(shot))
-        die(f"PayPal confirmation not reached in 120 s; screenshot at {shot}. Do the payment by hand and re-record S8 only.")
-    seg.hold(4.0)
-    if "100.00" not in page.inner_text("body"):
-        print("  WARNING: $100.00 not visible on the confirmation page; check S7 by eye.")
+        die(f"clicking the PayPal button did not open the checkout popup; screenshot at {shot}")
+    click_t = seg.now()
+    info = pay_in_popup(rec, popup, email, password)
+    pseg: Seg = info["seg"]
+    popup_vpath = popup.video.path()
+    closed_t = seg.now()
+
+    # Back on the invoice page once the popup has closed.
+    try:
+        page.get_by_text(PAID_TEXT).first.wait_for(state="visible", timeout=45_000)
+    except PWTimeout:
+        print("  WARNING: the invoice page did not show 'paid' after the popup closed; check S7's last seconds by eye.")
+    seg.hold(3.5)
     end_t = seg.now()
-    vpath = page.video.path()
+    main_vpath = page.video.path()
     page.close()
     ctx.close()
-    dest = RAW / "paypal-1.webm"
-    shutil.move(vpath, dest)
-    cuts = seg.cut_spans
-    rec.manifest.append({"shot": "S6", "kind": "desktop", "file": dest.name, "in": seg.start_at, "out": split_t,
-                         "idle": [], "cut": [], "app": False,
-                         "focus": [f for f in seg.focus_spans if f[1] <= split_t + 0.01]})
-    rec.manifest.append({"shot": "S7", "kind": "desktop", "file": dest.name, "in": split_t, "out": end_t,
-                         "idle": [], "cut": cuts, "app": False, "focus": []})
+    main_dest, popup_dest = RAW / "paypal-1.webm", RAW / "paypal-popup-1.webm"
+    shutil.move(main_vpath, main_dest)
+    shutil.move(popup_vpath, popup_dest)
+    base = {"app": False, "idle": [], "cut": [], "focus": []}
+    rec.manifest.append({**base, "shot": "S6", "kind": "desktop", "file": main_dest.name, "in": seg.start_at,
+                         "out": split_t, "focus": [f for f in seg.focus_spans if f[1] <= split_t + 0.01]})
+    # S7 is three clips, in order: the invoice page up to the click, the popup, the invoice page afterwards.
+    rec.manifest.append({**base, "shot": "S7", "kind": "desktop", "file": main_dest.name, "in": split_t,
+                         "out": click_t + 0.6})
+    rec.manifest.append({**base, "shot": "S7", "kind": "popup", "file": popup_dest.name, "in": pseg.start_at,
+                         "out": info["end"], "cut": pseg.cut_spans, "crop": info["size"]})
+    rec.manifest.append({**base, "shot": "S7", "kind": "desktop", "file": main_dest.name, "in": closed_t,
+                         "out": end_t})
 
 
 def placeholders(rec: Recorder, number: str) -> None:
@@ -523,7 +640,7 @@ def placeholders(rec: Recorder, number: str) -> None:
 
 
 def shot_s8(rec: Recorder, pid: str) -> None:
-    if not rec.live:
+    if rec.local:
         httpx.post(rec.base + "/dev/pay", timeout=10).raise_for_status()  # fake runner only: the buyer "pays"
     with rec.segment("S8") as s:
         s.open(f"{rec.base}/projects/{pid}", s.page.get_by_text("Change orders").first)
@@ -552,12 +669,25 @@ def main() -> None:
     ap.add_argument("--base-url", default="http://127.0.0.1:8765")
     ap.add_argument("--live", action="store_true", help="final take: record the PayPal sandbox pages")
     ap.add_argument("--headed", action="store_true")
+    ap.add_argument("--stub-paypal", choices=["prelogin", "popup-login"],
+                    help="rehearsal: run the live PayPal steps against a local stub of the sandbox pages (no network)")
     args = ap.parse_args()
     ensure_dirs()
     for f in RAW.glob("*.webm"):
         f.unlink()
     with sync_playwright() as pw:
-        rec = Recorder(pw, args.base_url, args.live, args.headed)
+        stub = args.stub_paypal
+        if stub:
+            import paypal_stub
+            if not urlparse(args.base_url).hostname in LOCAL_HOSTS:
+                die("--stub-paypal only runs against the local fake runner")
+            os.environ.setdefault("DEMO_BUYER_EMAIL", "buyer@example.com")
+            os.environ.setdefault("DEMO_BUYER_PASSWORD", "stub-password")
+        rec = Recorder(pw, args.base_url, args.live or bool(stub), args.headed,
+                       hook=paypal_stub.installer(stub == "prelogin") if stub else None)
+        if stub:
+            rec.run["mode"] = "dry"  # still a draft: the PayPal pages are a local stub, not PayPal
+            rec.run["stub_paypal"] = True
         try:
             print("S2 landing"); pid = shot_s2(rec)
             print("S3/S4 intake, both accept"); href = shot_s3_s4(rec, pid)
@@ -566,8 +696,10 @@ def main() -> None:
             print("S1 change order"); shot_s1(rec, pid, href)
             print("S5 invoice created and sent"); info = shot_s5(rec, pid)
             rec.run.update(invoice_number=info["invoice_number"], project_id=pid)
-            if args.live:
-                print("S6/S7 PayPal sandbox"); shots_s6_s7(rec, info["payer_link"], info["invoice_number"])
+            if stub:
+                paypal_stub.INFO["number"] = info["invoice_number"]
+            if args.live or stub:
+                print("S6/S7 PayPal sandbox" + (" (local stub)" if stub else "")); shots_s6_s7(rec, info["payer_link"], info["invoice_number"])
             else:
                 print("S6/S7 skipped (placeholders)"); placeholders(rec, info["invoice_number"])
             print("S8 read back"); shot_s8(rec, pid)
