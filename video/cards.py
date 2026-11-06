@@ -107,7 +107,7 @@ def _canvas(bg=(15, 23, 42), h: int = 930) -> tuple[Image.Image, ImageDraw.Image
 
 
 def phone_background(path: Path, desktop_frame: Path | None, x: int = 1230, y: int = 76, w: int = 390, h: int = 844,
-                     title: str = "The client's phone") -> None:
+                     title: str = "The client's phone", title_cx: int | None = None) -> None:
     """Dimmed desktop view with a title above the slot (x, y, w, h). The recording is composited over it."""
     if desktop_frame and desktop_frame.exists():
         from PIL import ImageEnhance, ImageFilter
@@ -116,7 +116,7 @@ def phone_background(path: Path, desktop_frame: Path | None, x: int = 1230, y: i
     else:
         img = Image.new("RGB", (W, AH), (24, 28, 38))
     d = ImageDraw.Draw(img)
-    cx = x + w // 2
+    cx = title_cx if title_cx is not None else x + w // 2
     f = font(32, True)
     tw = d.textlength(title, font=f)
     d.rounded_rectangle((cx - tw / 2 - 28, 14, cx + tw / 2 + 28, 66), radius=26, fill=(17, 24, 39))

@@ -125,3 +125,18 @@ PAYPAL") with the same structure. `uv run pytest` runs the composition and host-
    (`common.py`, `REPO_URL_PLACEHOLDER`).
 9. Watch every frame in `out/frames/`: no secrets, no real names or emails, no third-party marks.
 10. Upload as Public and open the link in a private window.
+
+## Editor repairs applied automatically (from the first live take)
+
+- A clip before a popup is trimmed by 1.5 s (second cursor over the PayPal iframe, dimmed page, Chrome's debugger
+  tooltip); the recorder now ends it about 1 s before the click itself (`pre_popup`).
+- The invoice page is shown again only once the dim overlay is gone: `assemble.py` finds the first bright stretch of
+  the return clip (the overlay averages about 35 luma, the success state about 160). If it never gets clean, S7 ends
+  on the popup and S8 shows PAID. The recorder also waits for "Payment successful" before the return clip starts.
+- S6 zooms on whole item cards, then the total (the recorder climbs to the nearest bordered box). For an
+  already-recorded take, `video/overrides/<invoice number>.json` can replace a shot's focus boxes
+  (`S6_focus`); one exists for the first live take.
+- S8 keeps only the left column (milestones and activity log) on the app background, so a stale card in the right
+  column never shows (`COLUMN` in `assemble.py`).
+- Re-assemble a finished take without re-recording: copy its `raw/*.webm`, `manifest.json` and `run.json` into
+  `video/raw/` (keep `raw/tts/`), then `uv run python assemble.py && uv run python check.py`.

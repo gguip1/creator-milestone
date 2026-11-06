@@ -67,7 +67,16 @@ CURSOR_JS = """
 SPOT_JS = """
 (el, mode) => {
   if (mode === 'off') { document.querySelectorAll('[data-spot]').forEach(e => { e.style.outline = ''; e.style.outlineOffset = ''; e.removeAttribute('data-spot'); }); return null; }
-  if (mode === 'row') { const t = el.closest('tr, li, [role=row]') || el; const q = t.getBoundingClientRect(); return {x: q.x, y: q.y, w: q.width, h: q.height}; }
+  if (mode === 'row') {
+    // The whole row or card around the text: a table row, a list item, or the nearest bordered box.
+    let t = el.closest('tr, li, [role=row]');
+    for (let n = el, i = 0; !t && n && i < 8; n = n.parentElement, i++) {
+      const cs = getComputedStyle(n), r = n.getBoundingClientRect();
+      if (parseFloat(cs.borderTopWidth) > 0 && r.height > 50 && r.width > 300) t = n;
+    }
+    const q = (t || el).getBoundingClientRect();
+    return {x: q.x, y: q.y, w: q.width, h: q.height};
+  }
   let n = el, limit = 6;
   const sec = el.closest('section, article') || document.body;
   const target = sec.getBoundingClientRect().width * 0.6;
@@ -441,7 +450,7 @@ def buyer_state(rec: Recorder, email: str, password: str) -> dict:
 
 
 BUTTON_FRAME = "iframe[title='PayPal-paypal'], iframe[title^='PayPal-paypal']"  # zoid PayPal Buttons frame
-PAID_TEXT = re.compile(r"\bpaid\b", re.I)
+PAID_TEXT = re.compile(r"payment successful|\bpaid\b", re.I)
 
 
 def wait_sandbox(page: Page) -> None:
@@ -560,9 +569,12 @@ def shots_s6_s7(rec: Recorder, link: str, number: str) -> None:
     seg.start_at = max(0.0, seg.now() - 0.3)
     page.mouse.move(seg.x, seg.y)
     seg.hold(1.5)
-    for needle in ("80.00", "20.00", "100.00"):  # zoom on the invoice lines and the total, as narrated
+    # Zoom on whole item cards (name, quantity, description, amount together), then the total row.
+    targets = [page.get_by_text("Extra outfit").first, page.get_by_text("Extra revision").first,
+               page.locator("div, tr, li").filter(has_text=re.compile(r"^\s*Total\s*\$?100\.00\s*$")).last]
+    for target in targets:
         try:
-            seg.focus(page.get_by_text(needle).first, 2.4, row=True)
+            seg.focus(target, 2.6, row=True)
         except Exception:  # noqa: BLE001 - zooming is cosmetic; the checks above are what matter
             pass
     terms = re.search(r"terms and conditions", text, re.I) and re.search(r"scope v2|version 2|v2", text, re.I)
@@ -603,16 +615,20 @@ def shots_s6_s7(rec: Recorder, link: str, number: str) -> None:
         page.screenshot(path=str(shot))
         die(f"clicking the PayPal button did not open the checkout popup; screenshot at {shot}")
     click_t = seg.now()
+    # Footage after the glide enters the iframe shows a second cursor, the dimmed page and Chrome's debugger
+    # tooltip, so S7's first clip ends before that (about 1 s before the click).
+    pre_click_end = max(split_t + 0.5, click_t - 0.9)
     info = pay_in_popup(rec, popup, email, password)
     pseg: Seg = info["seg"]
     popup_vpath = popup.video.path()
-    closed_t = seg.now()
 
     # Back on the invoice page once the popup has closed.
     try:
         page.get_by_text(PAID_TEXT).first.wait_for(state="visible", timeout=45_000)
     except PWTimeout:
         print("  WARNING: the invoice page did not show 'paid' after the popup closed; check S7's last seconds by eye.")
+    seg.hold(0.5)
+    back_t = seg.now()  # PayPal's own success message is up and the dim overlay is gone
     seg.hold(3.5)
     end_t = seg.now()
     main_vpath = page.video.path()
@@ -626,10 +642,10 @@ def shots_s6_s7(rec: Recorder, link: str, number: str) -> None:
                          "out": split_t, "focus": [f for f in seg.focus_spans if f[1] <= split_t + 0.01]})
     # S7 is three clips, in order: the invoice page up to the click, the popup, the invoice page afterwards.
     rec.manifest.append({**base, "shot": "S7", "kind": "desktop", "file": main_dest.name, "in": split_t,
-                         "out": click_t + 0.6})
+                         "out": pre_click_end, "pre_popup": True})
     rec.manifest.append({**base, "shot": "S7", "kind": "popup", "file": popup_dest.name, "in": pseg.start_at,
                          "out": info["end"], "cut": pseg.cut_spans, "crop": info["size"]})
-    rec.manifest.append({**base, "shot": "S7", "kind": "desktop", "file": main_dest.name, "in": closed_t,
+    rec.manifest.append({**base, "shot": "S7", "kind": "desktop", "file": main_dest.name, "in": back_t,
                          "out": end_t})
 
 
