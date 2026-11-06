@@ -16,7 +16,7 @@ FPS = 30
 W, H = 1920, 1080
 SANDBOX_HOST = "www.sandbox.paypal.com"
 DEMO_URL = "https://creator-milestone.onrender.com"
-REPO_URL_PLACEHOLDER = "<REPOSITORY URL>"
+REPO_URL_PLACEHOLDER = "github.com/gguip1/creator-milestone"
 PITCH = (
     "When a client asks for one more change, CreatorMilestone's AI checks the request against the scope "
     "both sides agreed to, prices the extras from the artist's rate card, and turns what both approve "
