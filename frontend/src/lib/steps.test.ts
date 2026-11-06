@@ -28,12 +28,12 @@ describe("projectSteps across the demo", () => {
     expect(states(project({ messages: ["intake"] }))).toBe("done,current,locked,locked");
     expect(states(project({ status: "AWAITING_ACCEPTANCE", messages: ["intake"] }))).toBe("done,current,locked,locked");
   });
-  it("agreed, nothing paid: bill is current, guard stays locked", () => {
-    expect(states(project({ status: "AGREED", messages: ["intake"] }))).toBe("done,done,current,locked");
+  it("agreed, nothing paid: bill is current and guard is already usable", () => {
+    expect(states(project({ status: "AGREED", messages: ["intake"] }))).toBe("done,done,current,todo");
   });
   it("a sent but unpaid invoice does not count as billed", () => {
     const sent = [{ milestone_id: "m1", paypal_status: "SENT" }];
-    expect(states(project({ status: "AGREED", messages: ["intake"], invoices: sent }))).toBe("done,done,current,locked");
+    expect(states(project({ status: "AGREED", messages: ["intake"], invoices: sent }))).toBe("done,done,current,todo");
   });
   it("deposit paid: bill is done and guard is next", () => {
     expect(states(project({ status: "IN_PROGRESS", messages: ["intake"], invoices: PAID }))).toBe("done,done,done,current");
@@ -50,13 +50,21 @@ describe("projectSteps across the demo", () => {
   it("a message with nothing billable also counts as guarded", () => {
     expect(states(project({ status: "IN_PROGRESS", messages: ["intake", "follow_up"], invoices: PAID }))).toBe("done,done,done,done");
   });
-  it("never shows a later step as done while an earlier one is not", () => {
-    // A follow-up and an approved change order exist, but nothing is paid yet.
+  it("guard is never locked once the scope is agreed, even with the deposit unpaid", () => {
+    expect(projectSteps("x", project({ status: "AGREED", messages: ["intake"] }))[3].state).not.toBe("locked");
+    expect(projectSteps("x", project({ messages: ["intake"] }))[3].state).toBe("locked");
+  });
+  it("a guarded, decided change order with the deposit unpaid shows guard done, not locked", () => {
     const p = project({ status: "AGREED", messages: ["intake", "follow_up"], changeOrders: ["CLIENT_APPROVED"] });
-    expect(states(p)).toBe("done,done,current,locked");
+    expect(states(p)).toBe("done,done,current,done");
+  });
+  it("a paid change order never leaves guard locked", () => {
+    const paidChange = [{ milestone_id: "co1", paypal_status: "PAID" }];
+    const p = project({ status: "IN_PROGRESS", messages: ["intake", "follow_up"], invoices: paidChange, changeOrders: ["CLIENT_APPROVED"] });
+    expect(projectSteps("x", p)[3].state).not.toBe("locked");
   });
   it("a shortcut-agreed project without an intake message still reads as read", () => {
-    expect(states(project({ status: "AGREED" }))).toBe("done,done,current,locked");
+    expect(states(project({ status: "AGREED" }))).toBe("done,done,current,todo");
   });
   it("only one step is ever current, and a locked step is never done", () => {
     const cases: Project[] = [
@@ -68,9 +76,9 @@ describe("projectSteps across the demo", () => {
     for (const c of cases) {
       const steps = projectSteps("x", c);
       expect(steps.filter((x) => x.state === "current").length).toBeLessThanOrEqual(1);
-      // Once a step is not done, no later step may be done.
-      const firstOpen = steps.findIndex((x) => x.state !== "done");
-      if (firstOpen >= 0) expect(steps.slice(firstOpen).every((x) => x.state !== "done")).toBe(true);
+      // Among the first three, once a step is not done no later one may be done. Guard stands apart: it needs only an agreed scope.
+      const firstOpen = steps.slice(0, 3).findIndex((x) => x.state !== "done");
+      if (firstOpen >= 0) expect(steps.slice(firstOpen, 3).every((x) => x.state !== "done")).toBe(true);
     }
   });
 });

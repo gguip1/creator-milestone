@@ -55,3 +55,8 @@ export function percent(basisPoints: number | null): string {
   if (basisPoints === null) return "";
   return `${basisPoints / 100}%`;
 }
+
+/** Reply drafts sometimes arrive with line breaks written as the two characters "\\n"; show and copy them as real breaks. */
+export function lineBreaks(text: string): string {
+  return text.replace(/\\r\\n|\\n/g, "\n");
+}

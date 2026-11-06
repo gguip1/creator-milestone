@@ -205,3 +205,9 @@ def test_fill_tokens_handles_a_model_written_dollar_sign():
     assert fill_tokens("${{PRICE_1}} and {{TOTAL}}", {"PRICE_1": 8_000, "TOTAL": 10_000}) == (
         "$80.00 and $100.00"
     )
+
+
+def test_fill_tokens_turns_escaped_breaks_into_real_ones_and_fixes_doubled_ending():
+    out = fill_tokens("첫 줄\\n\\n어떻게 하시겠겠습니까?\\r\\n끝", {})
+    assert out == "첫 줄\n\n어떻게 하시겠습니까?\n끝"
+    assert fill_tokens("Real\nbreak and 겠습니다", {}) == "Real\nbreak and 겠습니다"

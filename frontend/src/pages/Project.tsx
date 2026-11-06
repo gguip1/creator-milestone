@@ -54,7 +54,7 @@ export function MissingProject() {
   );
 }
 
-function DemoJumps({ project }: { project: Project }) {
+export function DemoJumps({ project }: { project: Project }) {
   const info = useQuery({ queryKey: ["demoInfo"], queryFn: api.demoInfo, staleTime: Infinity });
   const jump = useProjectMutation(project.id, (target: "deposit_paid" | "sketch_shared") =>
     api.demoJump(project.id, target),

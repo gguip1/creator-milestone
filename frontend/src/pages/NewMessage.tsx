@@ -7,6 +7,7 @@ import { AiProgress, AppShell, Button, CharCount, Chip, ErrorNote, ExampleRow, L
 import { api, type FollowUp } from "../lib/api";
 import { EXAMPLE_FOLLOW_UP } from "../lib/examples";
 import { isOutfit } from "../lib/art";
+import { lineBreaks } from "../lib/format";
 import { copyText, useProject } from "../lib/hooks";
 
 export function NewMessagePage() {
@@ -151,19 +152,19 @@ export function NewMessagePage() {
           <section aria-labelledby="draft-h" className="mt-6 rounded-lg border border-line p-6 sm:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 id="draft-h" className="eyebrow">Reply draft</h2>
-              <Button variant="secondary" icon={<Copy size={17} aria-hidden />} onClick={async () => setCopied(await copyText(result.scope_guard.reply_draft_client))}>
+              <Button variant="secondary" icon={<Copy size={17} aria-hidden />} onClick={async () => setCopied(await copyText(lineBreaks(result.scope_guard.reply_draft_client)))}>
                 {copied ? "Copied" : "Copy reply"}
               </Button>
             </div>
             <div className={`mt-4 grid gap-6 ${showTranslation ? "min-[1000px]:grid-cols-2 min-[1000px]:divide-x min-[1000px]:divide-line" : ""}`}>
               <div lang={clientLang}>
                 <p className="text-[14px] text-muted">{langName}: goes to the client{showTranslation ? "" : " (same language as yours, so no translation is needed)"}</p>
-                <p className="mt-2 whitespace-pre-wrap leading-relaxed">{result.scope_guard.reply_draft_client}</p>
+                <p className="mt-2 whitespace-pre-wrap leading-relaxed">{lineBreaks(result.scope_guard.reply_draft_client)}</p>
               </div>
               {showTranslation && (
                 <div lang="ko" className="min-[1000px]:pl-6">
                   <p className="text-[14px] text-muted">한국어: Jiwoo's translation, not sent</p>
-                  <p className="mt-2 whitespace-pre-wrap font-ko leading-[1.6]">{result.scope_guard.reply_draft_seller_translation}</p>
+                  <p className="mt-2 whitespace-pre-wrap font-ko leading-[1.6]">{lineBreaks(result.scope_guard.reply_draft_seller_translation)}</p>
                 </div>
               )}
             </div>
