@@ -25,3 +25,8 @@ frontend/dist/
 
 # Agent worktrees and local tool state
 .claude/
+
+# Demo video pipeline output and raw footage (never commit)
+video/out/
+video/raw/
+video/.venv/
