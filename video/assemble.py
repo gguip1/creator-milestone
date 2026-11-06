@@ -29,6 +29,10 @@ MAX_SPEED = 1.25  # narration length drives the shot length; footage is never sp
 AH = 930  # app area height; the 150 px band below holds captions and badges
 ZOOM_MAX = 1.45
 EASE = 0.8
+COLUMN = {"S8": (250, 560)}  # shot -> (x, width) of the left column kept: milestones and the activity log
+BG = "0x101010"  # the app's background, for the bars beside a cropped column
+CLEAN_LUMA = 100  # the dim PayPal overlay averages about 35; the clean success state about 160
+BEFORE_POPUP = 1.5  # seconds trimmed off the clip before a popup (second cursor, dim, Chrome tooltip)
 IDLE_KEEP = 0.5  # seconds of an idle wait that stay in, under a "Wait cut" tag
 TAIL = 0.5  # silence after the narration ends
 END_CARD = 2.0
@@ -128,19 +132,22 @@ def prepare_footage(seg: dict, dest: Path, work: Path, prev_clip: Path | None) -
         else:
             vs = next(st for st in probe(src)["streams"] if st["codec_type"] == "video")
             cw, ch = seg.get("crop") or [vs["width"], vs["height"]]  # the popup viewport, top left of the video
-            k = min(1500 / cw, 830 / ch, 1.6)
+            k = min(1500 / cw, 890 / ch, 1.6)  # as large as the app area allows
             w, h = int(cw * k) // 2 * 2, int(ch * k) // 2 * 2
             chain += f",crop={cw}:{ch}:0:0"
-            x, y, title = (W - w) // 2, 76 + (844 - h) // 2, "Checkout opens in a PayPal sandbox popup"
+            x, y, title = (W - w) // 2, (AH - h) // 2, "PayPal sandbox checkout"
         frame = work / f"{dest.stem}-prev.png"
         if prev_clip:
             run([ff, "-y", "-sseof", "-0.2", "-i", str(prev_clip), "-frames:v", "1", str(frame)])
         bg = work / f"{dest.stem}-bg.png"
-        phone_background(bg, frame if prev_clip else None, x, y, w, h, title)
+        phone_background(bg, frame if prev_clip else None, x, y, w, h, title, title_cx=None if seg["kind"] == "phone" else 270)
         scale = f",scale={w}:{h}:flags=lanczos" if seg["kind"] == "popup" else ""
         cmd += ["-loop", "1", "-i", str(bg), "-filter_complex",
                 f"[0:v]{chain}{scale}[ph];[1:v][ph]overlay={x}:{y}:shortest=1,format=yuv420p[v]"]
     else:
+        col = COLUMN.get(seg.get("shot", ""))
+        if col:  # keep only the left column, centred on the app's own background
+            chain += f",crop={col[1]}:{AH}:{col[0]}:0,pad={W}:{AH}:{(W - col[1]) // 2}:0:color={BG}"
         cmd += ["-filter_complex", f"[0:v]{chain},scale=1920:{AH}:flags=lanczos,format=yuv420p[v]"]
     out = dest if not (seg.get("focus") and seg["kind"] != "phone") else dest.with_name(dest.stem + "-pre.mp4")
     run(cmd + ["-map", "[v]", *ENC, str(out)])
@@ -150,11 +157,49 @@ def prepare_footage(seg: dict, dest: Path, work: Path, prev_clip: Path | None) -
         return rel - sum(min(y, rel) - x for x, y in removed if x < rel)
 
     if out != dest:
-        focus = [[to_out(f[0]), to_out(f[1]), *f[2:]] for f in seg["focus"]
+        shift = (W - COLUMN[seg["shot"]][1]) // 2 - COLUMN[seg["shot"]][0] if seg.get("shot") in COLUMN else 0
+        focus = [[to_out(f[0]), to_out(f[1]), f[2] + shift, *f[3:]] for f in seg["focus"]
                  if not any(x <= f[0] - a < y for x, y in removed)]
         apply_zoom(out, dest, focus) if focus else shutil.copy(out, dest)
     labels = [round(to_out(s), 3) for s in labels_src]
     return duration(dest), labels, raw_len
+
+
+def clean_start(src: Path, a: float, b: float | None) -> float | None:
+    """First time in [a, b] at which the picture is bright (the dim overlay is gone) for 3 samples in a row."""
+    cmd = [need("ffmpeg"), "-v", "error", "-ss", f"{a:.3f}"] + (["-t", f"{b - a:.3f}"] if b else []) + [
+        "-i", str(src), "-vf", "fps=5,scale=64:36,format=gray", "-f", "rawvideo", "-"]
+    data = subprocess.run(cmd, capture_output=True, check=True).stdout
+    n = 64 * 36
+    luma = [sum(data[i * n:(i + 1) * n]) / n for i in range(len(data) // n)]
+    for i in range(len(luma) - 2):
+        if all(v > CLEAN_LUMA for v in luma[i:i + 3]):
+            return a + i / 5 + 0.3
+    return None
+
+
+def fix_segments(segs: list[dict], overrides: dict, notes: list[str]) -> list[dict]:
+    """Editor-side repairs: trim before a popup, come back only once the overlay is gone, take overrides."""
+    out = []
+    for i, seg in enumerate(segs):
+        seg = dict(seg)
+        prev, nxt = (segs[i - 1] if i else None), (segs[i + 1] if i + 1 < len(segs) else None)
+        if seg["kind"] == "desktop" and nxt and nxt["kind"] == "popup" and not seg.get("pre_popup") and seg["out"]:
+            seg["out"] = max(seg["in"] + 0.5, seg["out"] - BEFORE_POPUP)
+            notes.append(f"{seg['shot']}: trimmed {BEFORE_POPUP}s before the popup")
+        if seg["kind"] == "desktop" and prev and prev["kind"] == "popup":
+            t = clean_start(RAW / seg["file"], seg["in"], seg["out"])
+            if t is None or (seg["out"] and t >= seg["out"] - 0.5):
+                notes.append(f"{seg['shot']}: the invoice page never shows a clean state after the popup; ends on the popup")
+                continue
+            if t > seg["in"] + 0.05:
+                notes.append(f"{seg['shot']}: back on the invoice page at +{t - seg['in']:.1f}s, once the overlay is gone")
+            seg["in"] = max(seg["in"], t)
+        if seg["shot"] + "_focus" in overrides:
+            seg["focus"] = overrides[seg["shot"] + "_focus"]
+            notes.append(f"{seg['shot']}: focus boxes from the overrides file")
+        out.append(seg)
+    return out
 
 
 def still_clip(png: Path, seconds: float, dest: Path, height: int = 1080) -> None:
@@ -200,6 +245,8 @@ def main() -> None:
         print(f"WARNING: no valid narration audio for {', '.join(estimated)}; using silence of an estimated length ({wpm:.0f} wpm).")
 
     number = run_info.get("invoice_number", "CM-…")
+    ov_path = Path(__file__).resolve().parent / "overrides" / f"{number}.json"
+    overrides = json.loads(ov_path.read_text()) if ov_path.exists() else {}
     shot_files: list[Path] = []
     shot_files_nocap: list[Path] = []
     audio_files: list[Path] = []
@@ -209,7 +256,8 @@ def main() -> None:
     n_cue = 1
     for shot in SHOTS:
         N, win = narr[shot], timing[shot]["window"]
-        segs = [m for m in manifest if m["shot"] == shot]
+        edit_notes: list[str] = []
+        segs = fix_segments([m for m in manifest if m["shot"] == shot], overrides, edit_notes)
         clips: list[Path] = []
         waits: list[float] = []
         raw_total = 0.0
@@ -234,7 +282,7 @@ def main() -> None:
             clips.append(dest)
 
         has_card = shot == "S9"
-        notes: list[str] = []
+        notes: list[str] = list(edit_notes)
         # Narration length drives the shot length. Footage longer than that is sped up, at most MAX_SPEED;
         # shorter footage holds its last frame.
         if has_card:

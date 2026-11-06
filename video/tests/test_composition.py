@@ -78,3 +78,44 @@ def test_payer_link_must_be_https_sandbox():
     for bad in ("http://www.sandbox.paypal.com/x", "https://www.paypal.com/invoice/p/#1", None, ""):
         with pytest.raises(SystemExit):
             record.check_payer_link(bad)
+
+
+def test_clean_start_waits_for_the_dim_overlay_to_go(tmp_path):
+    dark, bright = tmp_path / "d.mp4", tmp_path / "b.mp4"
+    for path, color in ((dark, "0x202020"), (bright, "0xe0e0e0")):
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"color={color}:s=320x180:r=30:d=2",
+                        "-pix_fmt", "yuv420p", str(path)], check=True)
+    both = tmp_path / "both.mp4"
+    assemble.concat([dark, bright], both, tmp_path / "l.txt")
+    t = assemble.clean_start(both, 0.0, None)
+    assert t is not None and 2.0 <= t <= 2.7
+    assert assemble.clean_start(dark, 0.0, None) is None  # never clean: the caller ends on the popup
+
+
+def test_fix_segments_trims_before_popup_and_skips_dim_returns(tmp_path, monkeypatch):
+    monkeypatch.setattr(assemble, "RAW", tmp_path)
+    for name, color in (("dim.mp4", "0x202020"), ("ok.mp4", "0xe0e0e0")):
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"color={color}:s=320x180:r=30:d=4",
+                        "-pix_fmt", "yuv420p", str(tmp_path / name)], check=True)
+    base = {"shot": "S7", "idle": [], "cut": [], "focus": []}
+    pre = {**base, "kind": "desktop", "file": "ok.mp4", "in": 0.0, "out": 3.0}
+    pop = {**base, "kind": "popup", "file": "ok.mp4", "in": 0.0, "out": 2.0}
+    notes: list[str] = []
+    fixed = assemble.fix_segments([pre, pop, {**base, "kind": "desktop", "file": "ok.mp4", "in": 0.0, "out": 3.0}], {}, notes)
+    assert fixed[0]["out"] == pytest.approx(1.5)  # 3.0 minus BEFORE_POPUP
+    assert len(fixed) == 3 and fixed[2]["in"] >= 0.0
+    fixed = assemble.fix_segments([pre, pop, {**base, "kind": "desktop", "file": "dim.mp4", "in": 0.0, "out": 3.0}], {}, notes)
+    assert len(fixed) == 2  # the dim-overlay clip is dropped; the shot ends on the popup
+
+
+def test_s8_keeps_only_the_left_column(tmp_path, monkeypatch):
+    monkeypatch.setattr(assemble, "RAW", tmp_path)
+    make_clip(tmp_path / "s8.mp4", 2, "1920x930")
+    seg = {"shot": "S8", "kind": "desktop", "file": "s8.mp4", "in": 0.0, "out": None, "idle": [], "cut": [], "focus": []}
+    dest = tmp_path / "out.mp4"
+    assemble.prepare_footage(seg, dest, tmp_path, None)
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(dest), "-frames:v", "1", str(tmp_path / "f.png")], check=True)
+    from PIL import Image
+    im = Image.open(tmp_path / "f.png").convert("RGB")
+    assert im.getpixel((20, 20)) == pytest.approx((16, 16, 16), abs=3)  # bar beside the column: app background
+    assert im.getpixel((960, 465)) != (16, 16, 16)                         # the column itself
